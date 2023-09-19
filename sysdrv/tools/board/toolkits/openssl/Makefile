@@ -55,6 +55,7 @@ all: zlib-dep
 		make -j$(SYSDRV_JOBS) 1>/dev/null || exit -1; \
 		make install > /dev/null; \
 	popd; )
+	cp -rfp $(CURRENT_DIR)/$(PKG_BIN)/lib/*.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib
 
 zlib-dep:
 	$(MAKE) -C $(PKG_DEP_ZLIB)

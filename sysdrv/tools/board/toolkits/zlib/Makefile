@@ -40,6 +40,7 @@ all:
 		make -j$(SYSDRV_JOBS) > /dev/null || exit -1; \
 		make install > /dev/null; \
 	popd; )
+	cp -rfp $(CURRENT_DIR)/$(PKG_BIN)/lib/libz.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib
 
 clean: distclean
 
