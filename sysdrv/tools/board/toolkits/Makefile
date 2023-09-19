@@ -18,8 +18,9 @@ endif
 PKG_DEP_OPENSSL := ./openssl
 PKG_DEP_ZLIB := ./zlib
 PKG_DEP_IPERF3 := ./iperf3
+PKG_DEP_PICOCOM := ./picocom
 
-all:dep_zlib dep_openssl tool_iperf3
+all:dep_zlib dep_openssl tool_iperf3 tool_picocom
 
 tool_io:
 	rm -rf $(PKG_BIN)/io;
@@ -27,6 +28,9 @@ tool_io:
 	$(SYSDRV_CROSS)-gcc $(PKG_CONF_OPTS) io.c -o $(PKG_BIN)/usr/bin/io
 	$(SYSDRV_CROSS)-strip -s $(PKG_BIN)/usr/bin/io
 	$(call MAROC_COPY_PKG_TO_SYSDRV_OUTPUT, $(SYSDRV_DIR_OUT_ROOTFS), $(CURRENT_DIR)/$(PKG_BIN))
+
+tool_picocom:
+	$(MAKE) -C $(PKG_DEP_PICOCOM)
 
 tool_iperf3:
 	$(MAKE) -C $(PKG_DEP_IPERF3)
