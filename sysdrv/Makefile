@@ -408,7 +408,8 @@ kernel_clean:
 ##########################################################################################
 rootfs_prepare: prepare
 	@echo -e "$(C_GREEN) ==sysdrv== prepare rootfs   $(C_NORMAL)"
-	tar xf $(SYSDRV_DIR)/tools/board/rootfs_script.tar -C $(SYSDRV_DIR_OUT_ROOTFS)
+	cp -rfp $(SYSDRV_DIR)/tools/board/base_rootfs/* $(SYSDRV_DIR_OUT_ROOTFS)
+	find $(SYSDRV_DIR_OUT_ROOTFS) -name .gitignore | xargs rm 
 	tar xjf $(TOOLCHAIN_DIR)/$(TOOLCHAIN_RUNTIME_LIB)/$(TOOLCHAIN_RUNTIME_LIB_C) -C $(SYSDRV_DIR_OUT_ROOTFS)
 	pushd $(SYSDRV_DIR_OUT_ROOTFS)/lib/ ; mv -fv \
 		libasan_preinit.o \
@@ -445,7 +446,8 @@ busybox: prepare
 		$(MAKE) CROSS_COMPILE=$(CROSS_COMPILE) -C $(BUSYBOX_DIR)/$(BUSYBOX_VER) install ;\
 	);
 ifeq ($(SYSDRV_BUILD_RAMDISK_FLAG),YES)
-	tar xf $(SYSDRV_DIR)/tools/board/rootfs_script.tar -C $(BUSYBOX_DIR)/$(BUSYBOX_VER)/_install
+	cp -rfp $(SYSDRV_DIR)/tools/board/base_rootfs/* $(BUSYBOX_DIR)/$(BUSYBOX_VER)/_install
+	find $(BUSYBOX_DIR)/$(BUSYBOX_VER)/_install -name .gitignore | xargs rm 
 ifneq ($(OUTPUT_SYSDRV_RAMDISK_TINY_ROOTFS_DIR),)
 	$(call MAROC_COPY_PKG_TO_SYSDRV_OUTPUT, $(OUTPUT_SYSDRV_RAMDISK_TINY_ROOTFS_DIR), \
 		$(SYSDRV_DIR)/tools/board/busybox/init \
