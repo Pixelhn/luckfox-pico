@@ -34,7 +34,7 @@ ifeq ($(PKG_USE_THUMB2),YES)
 PKG_CONF_OPTS += -mthumb -Wa,-mimplicit-it=thumb -mthumb-interwork
 endif
 
-all: zlib-dep
+all:
 	@test -f $(CURRENT_DIR)/$(PKG_BIN)/lib/libcrypto.a || (\
 	rm -fr $(CURRENT_DIR)/$(PKG_NAME_OPENSSL); \
 	tar -xf $(PKG_TARBALL_OPENSSL); \
@@ -56,9 +56,6 @@ all: zlib-dep
 		make install > /dev/null; \
 	popd; )
 	cp -rfp $(CURRENT_DIR)/$(PKG_BIN)/lib/*.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib
-
-zlib-dep:
-	$(MAKE) -C $(PKG_DEP_ZLIB)
 
 clean: distclean
 
