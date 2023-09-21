@@ -80,3 +80,5 @@ export CONFIG_RK_AVS=n
 export CONFIG_LUCKFOX_TEST=n
 
 export CONFIG_RK_SAMPLE=n
+
+export CONFIG_RK_SYSUTILS=n
