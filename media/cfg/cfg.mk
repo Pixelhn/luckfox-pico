@@ -75,4 +75,8 @@ export CONFIG_RK_CRYPTO=n
 # liblvgl
 export CONFIG_LVGL=n
 
-export CONFIG_RK_AVS=y
+export CONFIG_RK_AVS=n
+
+export CONFIG_LUCKFOX_TEST=n
+
+export CONFIG_RK_SAMPLE=n

@@ -4,7 +4,6 @@ ifeq ($(MEDIA_PARAM), )
     include $(MEDIA_PARAM)
 endif
 
-export CONFIG_RK_SAMPLE=y
 export LC_ALL=C
 SHELL:=/bin/bash
 
