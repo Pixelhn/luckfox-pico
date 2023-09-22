@@ -20,8 +20,9 @@
 ::sysinit:/bin/mkdir -p /dev/shm
 ::sysinit:/bin/mount -a 2>/dev/null
 ::sysinit:/bin/hostname -F /etc/hostname
+::once:/usr/sbin/telnetd
 # now run any rc scripts
-::respawn:-/bin/sh
+::respawn:-/bin/login
 ::sysinit:/etc/init.d/rcS
 
 # Put a getty on the serial port
