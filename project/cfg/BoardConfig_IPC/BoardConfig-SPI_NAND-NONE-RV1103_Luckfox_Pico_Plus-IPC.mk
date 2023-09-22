@@ -80,5 +80,5 @@ export RK_APP_TYPE=RKIPC_RV1103
 export RK_BUILD_APP_TO_OEM_PARTITION=y
 
 # enable rockchip test
-export RK_ENABLE_ROCKCHIP_TEST=y
+export RK_ENABLE_ROCKCHIP_TEST=n
 

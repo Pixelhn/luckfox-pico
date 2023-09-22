@@ -180,11 +180,11 @@
 };
 
 /**********UART**********/
-&uart3 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart3m1_xfer>;
-};
+//&uart3 {
+//	status = "okay";
+//	pinctrl-names = "default";
+//	pinctrl-0 = <&uart3m1_xfer>;
+//};
 &uart4 {
 	status = "okay";
 	pinctrl-names = "default";
