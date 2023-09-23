@@ -4,7 +4,7 @@ ifeq ($(SYSDRV_PARAM), )
 endif
 
 export LC_ALL=C
-SHELL:=/bin/bash
+export SHELL:=/bin/bash
 
 CURRENT_DIR := $(shell pwd)
 PKG_BIN := out
