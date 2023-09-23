@@ -34,7 +34,14 @@ ifeq ($(PKG_USE_THUMB2),YES)
 PKG_CONF_OPTS += -mthumb -Wa,-mimplicit-it=thumb -mthumb-interwork
 endif
 
-all:
+PKG_TARBALL_OPENSSL3 := openssl-3.1.3.tar.gz
+PKG_NAME_OPENSSL3 := openssl-3.1.3
+PKG_BIN3 := out3
+#SYSDRV_CROSS=arm-rockchip830-linux-uclibcgnueabihf-
+
+all:openssl3
+
+openssl:
 	@test -f $(CURRENT_DIR)/$(PKG_BIN)/lib/libcrypto.a || (\
 	rm -fr $(CURRENT_DIR)/$(PKG_NAME_OPENSSL); \
 	tar -xf $(PKG_TARBALL_OPENSSL); \
@@ -57,8 +64,21 @@ all:
 	popd; )
 	cp -rfp $(CURRENT_DIR)/$(PKG_BIN)/lib/*.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib
 
-clean: distclean
+openssl3:
+	@test -f $(CURRENT_DIR)/$(PKG_BIN3)/lib/libcrypto.a || ( \
+	rm -fr $(CURRENT_DIR)/$(PKG_NAME_OPENSSL3); \
+	tar -xf $(PKG_TARBALL_OPENSSL3); \
+	mkdir -p $(CURRENT_DIR)/$(PKG_BIN3); \
+	pushd $(CURRENT_DIR)/$(PKG_NAME_OPENSSL3)/; \
+			./Configure \
+			$(PKG_OS_COMPILE_FLAG_OPENSSL) \
+			--prefix=$(CURRENT_DIR)/$(PKG_BIN3) \
+			--cross-compile-prefix=${SYSDRV_CROSS}-; \
+			make -j$(SYSDRV_JOBS) || exit -1; \
+			make install ; \
+	popd; )
+	cp -rfp $(CURRENT_DIR)/$(PKG_BIN3)/lib/*.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib;
 
 distclean:
-	-rm -rf $(PKG_BIN) $(PKG_NAME_OPENSSL)
+	-rm -rf $(PKG_BIN) $(PKG_NAME_OPENSSL) $(PKG_BIN3) $(PKG_NAME_OPENSSL3)
 	-$(MAKE) -C $(PKG_DEP_ZLIB) clean

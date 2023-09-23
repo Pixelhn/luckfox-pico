@@ -22,11 +22,8 @@ PKG_DEP_ZLIB := $(CURRENT_DIR)/../zlib
 PKG_DEP_OPENSSL := $(CURRENT_DIR)/../openssl
 
 PKG_CONF_OPTS += $(SYSDRV_OPTS) -Os \
-				 -I $(PKG_DEP_OPENSSL)/out/include \
-				 -L$(PKG_DEP_OPENSSL)/out/lib \
-				 -I $(PKG_DEP_ZLIB)/out/include \
-				 -L$(PKG_DEP_ZLIB)/out/lib \
-				 -lz
+				 -I $(PKG_DEP_OPENSSL)/out3/include \
+				 -L$(PKG_DEP_OPENSSL)/out3/lib
 
 all:
 	@test -f $(CURRENT_DIR)/$(PKG_BIN)/bin/iperf3 ||(\
