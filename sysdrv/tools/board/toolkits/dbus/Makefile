@@ -16,9 +16,10 @@ all:
 			export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}; \
 			./configure --prefix=${BUILD_TARGET_OUT} --host=${SYSDRV_CROSS} \
 			--disable-tests --disable-selinux; \
-			make; \
+			make -j$(SYSDRV_JOBS); \
 			make install; \
 		popd;)
+	cp -rfp $(BUILD_TARGET_OUT)/lib/*.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib;
 
 clean:
 	-rm -rf ${BUILD_TARGET_DIR} ${BUILD_TARGET_OUT}

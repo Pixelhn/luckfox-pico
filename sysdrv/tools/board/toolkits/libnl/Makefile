@@ -13,9 +13,10 @@ all:
 		mkdir -p ${BUILD_TARGET_OUT}; \
 		pushd $(BUILD_TARGET_DIR)/; \
 			./configure --prefix=${BUILD_TARGET_OUT} --host=${SYSDRV_CROSS}; \
-			make; \
+			make -j$(SYSDRV_JOBS); \
 			make install; \
 		popd;)
+	cp -rfp $(BUILD_TARGET_OUT)/lib/libnl-3.so* $(BUILD_TARGET_OUT)/lib/libnl-route-3.so* $(BUILD_TARGET_OUT)/lib/libnl-genl-3.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib;
 
 clean:
 	-rm -rf $(BUILD_TARGET_DIR) ${BUILD_TARGET_OUT}

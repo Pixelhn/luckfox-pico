@@ -17,7 +17,7 @@ BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 PKG_CONFIG_PATH3=${PKG_LIB_DBUS}/out/lib/pkgconfig:${PKG_LIB_NL}/out/lib/pkgconfig:${PKG_LIB_OPENSSL}/out3/lib/pkgconfig
 
 all: lib_dbus lib_nl lib_openssl
-	@test -f $(CURRENT_DIR)/$(PKG_BIN)/wpa_supplicant || ( \
+	@test -f $(BUILD_TARGET_OUT)/wpa_supplicant || ( \
 		rm -rf ${CURRENT_DIR}/wpa_supplicant-2.10 ${BUILD_TARGET_OUT}; \
 		tar -xf ${BUILD_TARGET}; \
 		mkdir -p $(BUILD_TARGET_OUT); \
@@ -31,10 +31,11 @@ all: lib_dbus lib_nl lib_openssl
 		echo "CFLAGS += -I${PKG_LIB_NL}/out/include" >> .config; \
 		echo "CFLAGS += -I${PKG_LIB_DBUS}/out/include" >> .config; \
 		echo "CC=${SYSDRV_CROSS}-gcc" >> .config; \
-		${MAKE} -C ${BUILD_TARGET_DIR} PKG_CONFIG_PATH=${PKG_CONFIG_PATH3}; \
+		${MAKE} -C ${BUILD_TARGET_DIR} PKG_CONFIG_PATH=${PKG_CONFIG_PATH3} -j$(SYSDRV_JOBS); \
 		cp ${BUILD_TARGET_DIR}/wpa_supplicant ${BUILD_TARGET_DIR}/wpa_cli ${BUILD_TARGET_OUT}; \
 		${SYSDRV_CROSS}-strip ${BUILD_TARGET_OUT}/*; \
 	popd;)
+	cp -rfp $(BUILD_TARGET_OUT)/*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin;
 
 lib_dbus:lib_expat
 	$(MAKE) -C ${PKG_LIB_DBUS}

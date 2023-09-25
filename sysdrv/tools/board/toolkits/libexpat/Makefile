@@ -13,7 +13,7 @@ all:
 		mkdir -p ${BUILD_TARGET_OUT}; \
 		pushd $(BUILD_TARGET_DIR)/; \
 			./configure --prefix=${BUILD_TARGET_OUT} --host=${SYSDRV_CROSS}; \
-			make; \
+			make -j$(SYSDRV_JOBS); \
 			make install; \
 		popd;)
 
