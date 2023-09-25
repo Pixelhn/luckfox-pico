@@ -27,7 +27,7 @@ ifeq ($(M_OUT_DIR),)
 $(error Please build on upper directory)
 endif
 
-all: $(PKG_TARGET)
+all: $(PKG_TARGET) build-esp-ng
 	@echo "build wifi done"
 	@echo "build wifi $(WIFI_RFKILL)"
 ifeq ($(ENABLE_WIFI),y)
@@ -80,6 +80,9 @@ build-sdio:
 	#@make -C bcmdhd_chipalive/
 
 endif
+
+build-esp-ng:
+	${MAKE} -C esp32c3
 
 build-sdio-clean:
 	@make -C rtl8189fs/ clean

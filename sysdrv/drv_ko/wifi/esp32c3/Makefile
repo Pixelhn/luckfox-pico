@@ -1,14 +1,23 @@
+CURRENT_DIR := $(shell pwd)
+export SHELL:=/bin/bash
 
+TARGET := esp32_spi.ko
+
+BUILD_TARGET := ${CURRENT_DIR}/esp32_spi.ko
+BUILD_TARGET_DIR := ${CURRENT_DIR}/esp-hosted/esp_hosted_ng/host
+BUILD_TARGET_OUT := ../../out
 
 all:
-	${MAKE} -C esp-hosted/esp_hosted_ng/host/ \
-	CROSS_COMPILE=arm-rockchip830-linux-uclibcgnueabihf- \
-	KERNEL=/home/lhn/Git/rv1106/luckfox-pico/sysdrv/source/kernel \
+	${MAKE} -C ${BUILD_TARGET_DIR} \
+	CROSS_COMPILE=$(CROSS_COMPILE) \
+	KERNEL=$(KERNEL_DIR) \
 	target=spi
+	$(CROSS_COMPILE)strip ${BUILD_TARGET_DIR}/${TARGET} --strip-debug
+	cp ${BUILD_TARGET_DIR}/${TARGET} ${BUILD_TARGET_OUT}
 
 
 clean:
-	${MAKE} -C esp-hosted/esp_hosted_ng/host/ clean \
-	CROSS_COMPILE=arm-rockchip830-linux-uclibcgnueabihf- \
-	KERNEL=/home/lhn/Git/rv1106/luckfox-pico/sysdrv/source/kernel \
+	${MAKE} -C ${BUILD_TARGET_DIR} clean \
+	CROSS_COMPILE=$(CROSS_COMPILE) \
+	KERNEL=$(KERNEL_DIR) \
 	target=spi
