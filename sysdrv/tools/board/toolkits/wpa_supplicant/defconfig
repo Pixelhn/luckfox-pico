@@ -9,18 +9,11 @@
 # be modified from here. In most cases, these lines should use += in order not
 # to override previous values of the variables.
 
-CC=arm-rockchip830-linux-uclibcgnueabihf-gcc
 
 # Uncomment following two lines and fix the paths if you have installed OpenSSL
 # or GnuTLS in non-default location
-CFLAGS += -I/home/lhn/Git/rv1106/luckfox-pico/sysdrv/tools/board/toolkits/openssl/out3/include
-LIBS += -L/home/lhn/Git/rv1106/luckfox-pico/sysdrv/tools/board/toolkits/openssl/out3/lib
-
-CFLAGS += -I/home/lhn/Git/rv1106/luckfox-pico/sysdrv/tools/board/toolkits/libnl/out/include
-LIBS += -L/home/lhn/Git/rv1106/luckfox-pico/sysdrv/tools/board/toolkits/libnl/out/lib
-
-CFLAGS += -I/home/lhn/Git/rv1106/luckfox-pico/sysdrv/tools/board/toolkits/dbus/out/include
-LIBS += -L/home/lhn/Git/rv1106/luckfox-pico/sysdrv/tools/board/toolkits/dbus/out/lib
+#CFLAGS += -I/usr/local/openssl/include
+#LIBS += -L/usr/local/openssl/lib
 
 # Some Red Hat versions seem to include kerberos header files from OpenSSL, but
 # the kerberos files are not in the default include path. Following line can be
