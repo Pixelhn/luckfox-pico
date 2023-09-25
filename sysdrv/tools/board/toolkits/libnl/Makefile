@@ -8,7 +8,7 @@ BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 
 all:
 	@test -f $(BUILD_TARGET_OUT)/lib/libnl-3.so || ( \
-		-rm -rf $(BUILD_TARGET_DIR) ${BUILD_TARGET_OUT}; \
+		rm -rf $(BUILD_TARGET_DIR) ${BUILD_TARGET_OUT}; \
 		tar -xf ${BUILD_TARGET}; \
 		mkdir -p ${BUILD_TARGET_OUT}; \
 		pushd $(BUILD_TARGET_DIR)/; \

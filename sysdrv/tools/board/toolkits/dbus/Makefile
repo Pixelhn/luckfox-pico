@@ -9,7 +9,7 @@ PKG_CONFIG_PATH=${PKG_LIB_EXPAT}/out/lib/pkgconfig
 
 all:
 	@test -f $(BUILD_TARGET_OUT)/lib/libdbus-1.so || ( \
-		-rm -rf $(BUILD_TARGET_DIR) ${BUILD_TARGET_OUT}; \
+		rm -rf $(BUILD_TARGET_DIR) ${BUILD_TARGET_OUT}; \
 		tar -xf ${BUILD_TARGET}; \
 		mkdir -p ${BUILD_TARGET_OUT}; \
 		pushd $(BUILD_TARGET_DIR)/; \
