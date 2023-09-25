@@ -14,7 +14,8 @@ all:
 		mkdir -p ${BUILD_TARGET_OUT}; \
 		pushd $(BUILD_TARGET_DIR)/; \
 			export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}; \
-			./configure --prefix=${BUILD_TARGET_OUT} --host=${SYSDRV_CROSS}; \
+			./configure --prefix=${BUILD_TARGET_OUT} --host=${SYSDRV_CROSS} \
+			--disable-tests --disable-selinux; \
 			make; \
 			make install; \
 		popd;)
