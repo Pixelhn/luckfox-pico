@@ -221,7 +221,7 @@ $(error Please config TINY_ROOTFS_BUSYBOX_CFG on cfg/cfg.mk)
 endif
 endif
 BUSYBOX_CFG ?= config_normal
-BUSYBOX_VER ?= busybox-1.27.2
+BUSYBOX_VER ?= busybox-1.36.1
 BUSYBOX_DIR := $(SYSDRV_DIR)/source/busybox
 
 TOOLCHAIN_RUNTIME_LIB_C:=lib.tar.bz2
@@ -441,8 +441,7 @@ busybox: prepare
 		mkdir -p $(BUSYBOX_DIR) ;\
 		tar xjf $(SYSDRV_DIR)/tools/board/busybox/$(BUSYBOX_VER).tar.bz2 -C $(BUSYBOX_DIR) ;\
 		cp $(SYSDRV_DIR)/tools/board/busybox/$(BUSYBOX_CFG) $(BUSYBOX_DIR)/$(BUSYBOX_VER)/.config ;\
-		cp -fv $(SYSDRV_DIR)/tools/board/busybox/*.patch $(SYSDRV_DIR)/tools/board/busybox/busybox.patch.sh $(BUSYBOX_DIR)/$(BUSYBOX_VER)/ ;\
-		pushd $(BUSYBOX_DIR)/$(BUSYBOX_VER)/;$(SHELL) ./busybox.patch.sh ; $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -j$(SYSDRV_JOBS) ; popd ;\
+		pushd $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -j$(SYSDRV_JOBS) ; popd ;\
 		$(MAKE) CROSS_COMPILE=$(CROSS_COMPILE) -C $(BUSYBOX_DIR)/$(BUSYBOX_VER) install ;\
 	);
 ifeq ($(SYSDRV_BUILD_RAMDISK_FLAG),YES)
