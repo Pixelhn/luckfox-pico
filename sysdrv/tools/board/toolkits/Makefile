@@ -20,8 +20,9 @@ PKG_DEP_ZLIB := ./zlib
 PKG_DEP_IPERF3 := ./iperf3
 PKG_DEP_PICOCOM := ./picocom
 PKG_DEP_WPA_SUPPLICANT := ./wpa_supplicant
+PKG_DEP_OPENSSL := ./openssh
 
-all:dep_openssl tool_iperf3 tool_picocom tool_wpa_supplicant
+all:dep_openssl tool_iperf3 tool_picocom tool_wpa_supplicant tool_openssh
 
 tool_io:
 	rm -rf $(PKG_BIN)/io;
@@ -29,6 +30,10 @@ tool_io:
 	$(SYSDRV_CROSS)-gcc $(PKG_CONF_OPTS) io.c -o $(PKG_BIN)/usr/bin/io
 	$(SYSDRV_CROSS)-strip -s $(PKG_BIN)/usr/bin/io
 	$(call MAROC_COPY_PKG_TO_SYSDRV_OUTPUT, $(SYSDRV_DIR_OUT_ROOTFS), $(CURRENT_DIR)/$(PKG_BIN))
+
+
+tool_wpa_supplicant:
+	$(MAKE) -C $(PKG_DEP_OPENSSH)
 
 tool_wpa_supplicant:
 	$(MAKE) -C $(PKG_DEP_WPA_SUPPLICANT)
