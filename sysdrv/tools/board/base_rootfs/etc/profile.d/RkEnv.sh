@@ -1,3 +1,3 @@
-export HOME=/oem
-export PATH=$PATH:$HOME:$HOME/bin:$HOME/usr/bin:$HOME/sbin:$HOME/usr/sbin
-export LD_LIBRARY_PATH=$HOME/usr/lib:$HOME/lib:$LD_LIBRARY_PATH
+export OEM=/oem
+export PATH=$PATH:$OEM:$OEM/bin:$OEM/usr/bin:$OEM/sbin:$OEM/usr/sbin
+export LD_LIBRARY_PATH=$OEM/usr/lib:$OEM/lib:$LD_LIBRARY_PATH

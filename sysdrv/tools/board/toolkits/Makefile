@@ -22,7 +22,7 @@ PKG_DEP_PICOCOM := ./picocom
 PKG_DEP_WPA_SUPPLICANT := ./wpa_supplicant
 PKG_DEP_OPENSSL := ./openssh
 
-all:dep_openssl tool_iperf3 tool_picocom tool_wpa_supplicant tool_openssh
+all:dep_openssl tool_iperf3 tool_picocom tool_wpa_supplicant
 
 tool_io:
 	rm -rf $(PKG_BIN)/io;
