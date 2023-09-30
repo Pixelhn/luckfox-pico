@@ -12,7 +12,7 @@ BUILD_TARGET_DIR := ${CURRENT_DIR}/dropbear-2022.83
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 
 all: lib_zlib
-	@test -f $(BUILD_TARGET_OUT)/usr/local/sbin/sshd || ( \
+	@test -f $(BUILD_TARGET_OUT)/sbin/dropbear || ( \
 		rm -rf ${BUILD_TARGET_DIR}/ ${BUILD_TARGET_OUT}; \
 		tar -xf ${BUILD_TARGET}; \
 		mkdir -p $(BUILD_TARGET_OUT); \
@@ -23,7 +23,9 @@ all: lib_zlib
 			make; \
 			make install; \
 			popd;)
-#cp -rfp $(BUILD_TARGET_OUT)/*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin;
+	cp -rfp $(BUILD_TARGET_OUT)/sbin/*  $(SYSDRV_DIR_OUT_ROOTFS)/sbin;
+	cp -rfp $(BUILD_TARGET_OUT)/bin/dropbearkey  $(SYSDRV_DIR_OUT_ROOTFS)/bin;
+	cp -rfp $(CURRENT_DIR)/S60dropbear  $(SYSDRV_DIR_OUT_ROOTFS)/etc/init.d/;
 
 lib_zlib:
 	$(MAKE) -C ${PKG_LIB_ZLIB}

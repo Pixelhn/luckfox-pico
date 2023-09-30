@@ -1,0 +1,35 @@
+#!/bin/sh
+
+key_gengral()
+{
+
+	if [ ! -f /etc/dropbear/dropbear_rsa_host_key ]; then
+    	dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
+	fi
+
+	if [ ! -f /etc/dropbear/dropbear_dss_host_key ]; then
+    	dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
+	fi
+
+	if [ ! -f /etc/dropbear/dropbear_ecdsa_host_key ]; then
+    	dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
+	fi
+
+	if [ ! -f /etc/dropbear/dropbear_ed25519_host_key ]; then
+    	dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
+	fi
+
+}
+
+case $1 in
+	start)
+		create_key
+		/sbin/dropbear -E
+		;;
+	stop)
+		killall dropbear
+		;;
+	*)
+		exit 1
+		;;
+esac
