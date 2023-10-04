@@ -13,7 +13,7 @@ BUILD_TARGET_DIR := ${CURRENT_DIR}/openssh-9.4p1
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 
 all: lib_openssl lib_zlib
-	@test -f $(BUILD_TARGET_OUT)/usr/local/sbin/sshd || ( \
+	@test -f $(BUILD_TARGET_OUT)/usr/local/libexec/sftp-server || ( \
 		rm -rf ${BUILD_TARGET_DIR}/ ${BUILD_TARGET_OUT}; \
 		tar -xf ${BUILD_TARGET}; \
 		mkdir -p $(BUILD_TARGET_OUT); \
@@ -24,8 +24,8 @@ all: lib_openssl lib_zlib
 			--disable-etc-default-login LDFLAGS="-pthread"; \
 			make -j4 ; \
 			make install-nokeys DESTDIR=${BUILD_TARGET_OUT} STRIP_OPT=; \
-			popd;)
-#cp -rfp $(BUILD_TARGET_OUT)/*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin;
+		popd;)
+		cp -rfp $(BUILD_TARGET_OUT)/usr/local/libexec/sftp-server  $(SYSDRV_DIR_OUT_ROOTFS)/usr/libexec;
 
 lib_openssl:
 	$(MAKE) -C ${PKG_LIB_OPENSSL}

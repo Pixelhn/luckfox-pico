@@ -23,7 +23,7 @@ PKG_DEP_WPA_SUPPLICANT := ./wpa_supplicant
 PKG_DEP_OPENSSH := ./openssh
 PKG_DEP_DROPBEAR := ./dropbear
 
-all:dep_openssl tool_iperf3 tool_picocom tool_wpa_supplicant tool_dropear
+all:dep_openssl tool_iperf3 tool_picocom tool_wpa_supplicant tool_dropear tool_openssh
 
 tool_io:
 	rm -rf $(PKG_BIN)/io;
@@ -35,6 +35,7 @@ tool_io:
 tool_dropear:
 	${MAKE} -C ${PKG_DEP_DROPBEAR}
 
+#only use /usr/libexec/sftp-server
 tool_openssh:
 	$(MAKE) -C $(PKG_DEP_OPENSSH)
 
