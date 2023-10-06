@@ -16,7 +16,7 @@ export CONFIG_RK_MPP=y
 # Rockchip MPP use drm allocator
 export CONFIG_RK_MPP_ALLOCATOR_DRM=n
 # Install test programs
-export CONFIG_RK_MPP_TESTS=y
+# export CONFIG_RK_MPP_TESTS=y
 
 #------------------------------------------------
 # Rockchip's RKAIQ(Rockchip Auto Image Quality)
@@ -26,7 +26,7 @@ export CONFIG_RK_RKAIQ=y
 # ISP Hardware version
 export CONFIG_RK_ISP_HW_VERSION_V32=y
 # ISP build demo
-export CONFIG_RK_ISP_BUILD_DEMO=y
+# export CONFIG_RK_ISP_BUILD_DEMO=y
 
 #------------------------------------------------
 # Rockchip's RGA2 (Raster Graphic Acceleration)
@@ -70,7 +70,7 @@ export CONFIG_RK_CRYPTO=n
 # export CONFIG_ALSA_LIB=y
 
 # Enable libv4l
-# export CONFIG_LIBV4L=y
+export CONFIG_LIBV4L=y
 
 # liblvgl
 export CONFIG_LVGL=n

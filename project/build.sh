@@ -1844,10 +1844,10 @@ function build_firmware(){
 	mkdir -p $RK_PROJECT_PACKAGE_USERDATA_DIR
 	build_mkimg userdata $RK_PROJECT_PACKAGE_USERDATA_DIR
 
-	build_tftp_sd_update
+	# build_tftp_sd_update
 
 	[ "$RK_ENABLE_RECOVERY" = "y" -o "$RK_ENABLE_OTA" = "y" ] && build_ota
-	build_updateimg
+	# build_updateimg
 
 	finish_build
 }
