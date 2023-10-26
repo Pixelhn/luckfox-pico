@@ -166,6 +166,11 @@
 		compatible = "dallas,ds1307";
 		reg = <0x68>;
 	};
+
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
 };
 
 /**********SPI**********/
