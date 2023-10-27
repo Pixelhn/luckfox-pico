@@ -161,11 +161,6 @@
 	status = "okay";
 	pinctrl-0 = <&i2c3m1_xfer>;
 	clock-frequency = <100000>;
-	
-	rtc@68 {
-		compatible = "dallas,ds1307";
-		reg = <0x68>;
-	};
 
 	rtc@51 {
 		compatible = "nxp,pcf8563";
