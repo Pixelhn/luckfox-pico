@@ -499,8 +499,8 @@ else
 	
 	cp -af $(BUSYBOX_DIR)/$(BUSYBOX_VER)/_install/* $(SYSDRV_DIR_OUT_ROOTFS)
 	# luckfox
-	cp $(SYSDRV_DIR)/tools/board/android-tools/S90usb0config $(SYSDRV_DIR_OUT_ROOTFS)/etc/init.d
-	touch $(SYSDRV_DIR_OUT_ROOTFS)/userdata/.busybox
+#	cp $(SYSDRV_DIR)/tools/board/android-tools/S90usb0config $(SYSDRV_DIR_OUT_ROOTFS)/etc/init.d
+#	touch $(SYSDRV_DIR_OUT_ROOTFS)/userdata/.busybox
 
 endif
 
