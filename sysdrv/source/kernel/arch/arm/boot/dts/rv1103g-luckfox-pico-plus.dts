@@ -151,9 +151,10 @@
 //	status = "disabled";
 //};
 
-//&usbdrd_dwc3 {
-//	status = "disabled";
-//};
+&usbdrd_dwc3 {
+	status = "okay";
+	dr_mode = "host";
+};
 
 //&u2phy {
 //	status = "disabled";
