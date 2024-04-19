@@ -81,7 +81,7 @@ export RK_MISC=wipe_all-misc.img
 export RK_UBOOT_DEFCONFIG=rv1106_defconfig
 
 # Kernel defconfig
-export RK_KERNEL_DEFCONFIG=luckfox_rv1106_linux_defconfig
+export RK_KERNEL_DEFCONFIG=rv1106_linux_defconfig
 
 # Config sensor IQ files
 # RK_CAMERA_SENSOR_IQFILES format:
