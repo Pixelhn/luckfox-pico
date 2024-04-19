@@ -33,7 +33,7 @@
 #include "app_main.h"
 #include "esp_wifi.h"
 #include "cmd.h"
-
+#include "esp_mac.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #ifdef CONFIG_BT_ENABLED
@@ -44,7 +44,6 @@
 #endif
 #include "endian.h"
 
-#include "driver/periph_ctrl.h"
 #include "slave_bt.c"
 #include "stats.h"
 
@@ -66,6 +65,7 @@ volatile uint8_t station_connected = 0;
 volatile uint8_t softap_started = 0;
 volatile uint8_t ota_ongoing = 0;
 volatile uint8_t power_save_on = 0;
+struct wow_config wow;
 SemaphoreHandle_t wakeup_sem;
 SemaphoreHandle_t init_sem;
 uint32_t ip_address;
@@ -95,6 +95,7 @@ QueueHandle_t to_host_queue[MAX_PRIORITY_QUEUES] = {NULL};
 #define ETH_DATA_LEN			1500
 
 uint8_t ap_mac[MAC_ADDR_LEN] = {0};
+uint8_t sta_mac[MAC_ADDR_LEN] = {0};
 
 #if CONFIG_ESP_SDIO_HOST_INTERFACE
 extern void wake_host();
@@ -167,16 +168,16 @@ uint8_t is_wakeup_needed(interface_buffer_handle_t *buf_handle)
 			/* ARP packet */
 			pos = buf_start + 38;
 			target_ip = (uint32_t *) pos;
-			/*ESP_LOG_BUFFER_HEXDUMP("ARP Target IP: ", target_ip, 4, ESP_LOG_INFO);*/
-			/*ESP_LOG_BUFFER_HEXDUMP("ARP My IP: ", &ip_address, 4, ESP_LOG_INFO);*/
+			ESP_LOG_BUFFER_HEXDUMP("ARP Target IP: ", target_ip, 4, ESP_LOG_DEBUG);
+			ESP_LOG_BUFFER_HEXDUMP("ARP My IP: ", &ip_address, 4, ESP_LOG_DEBUG);
 
 			if (memcmp(target_ip, &ip_address, 4) == 0) {
 				/* Wake up host for self IP ARP request */
+				ESP_LOGD(TAG, "IP matched, Wakup host");
 				return 1;
-				/*ESP_LOGI(TAG, "IP matched\n");*/
 			} else {
+				ESP_LOGD(TAG, "IP not matched, noop");
 				return 0;
-				/*ESP_LOGI(TAG, "IP not matched\n");*/
 			}
 		}
 	}
@@ -184,20 +185,27 @@ uint8_t is_wakeup_needed(interface_buffer_handle_t *buf_handle)
 	pos = buf_start;
 	if (*pos & 1) {
 		/* Multicast Destination Address */
-/*		ESP_LOG_BUFFER_HEXDUMP("Frame", pos, 32, ESP_LOG_INFO);*/
+		ESP_LOG_BUFFER_HEXDUMP("Frame", pos, 32, ESP_LOG_DEBUG);
 
 		if (address_lookup(pos)) {
 			/* Multicast group is subscribed. Wake up host */
-/*			ESP_LOGI(TAG, "Address matched");*/
+			ESP_LOGD(TAG, "Multicast addr matched, wakeup host");
 			return 1;
 		}
 
 		/* Host did not subscribed this group. Do not wake host */
-/*		ESP_LOGI(TAG, "Address did not match");*/
+		ESP_LOGD(TAG, "Multicast addr did not match. noop");
 		return 0;
 	}
 
-	return 1;
+	if (memcmp(sta_mac, pos, MAC_ADDR_LEN) == 0) {
+		ESP_LOG_BUFFER_HEXDUMP("Frame", pos, 32, ESP_LOG_DEBUG);
+		ESP_LOGD(TAG, "Unicast addr matched, wakup host");
+		return 1;
+	}
+
+	ESP_LOGD(TAG, "Default : noop");
+	return 0;
 }
 #endif
 
@@ -349,8 +357,9 @@ void send_task(void* pvParameters)
 		} else if (low_prio_pkt_waiting) {
 			if (xQueueReceive(to_host_queue[PRIO_Q_LOW], &buf_handle, portMAX_DELAY)) {
 #if CONFIG_ESP_SDIO_HOST_INTERFACE
-				if (power_save_on) {
+				if (power_save_on && wow.magic_pkt) {
 					if (is_wakeup_needed(&buf_handle)) {
+						ESP_LOGI(TAG, "Wakeup on Magic packet");
 						wake_host();
 						buf_handle.flag = 0xFF;
 					}
@@ -451,9 +460,19 @@ void process_priv_commamd(uint8_t if_type, uint8_t *payload, uint16_t payload_le
 			process_reg_set(if_type, payload, payload_len);
 			break;
 
+		case CMD_SET_WOW_CONFIG:
+			ESP_LOGI(TAG, "WoW set command");
+			process_wow_set(if_type, payload, payload_len);
+			break;
+
 		case CMD_GET_REG_DOMAIN:
 			ESP_LOGI(TAG, "REG get command");
 			process_reg_get(if_type, payload, payload_len);
+			break;
+		case CMD_RAW_TP_ESP_TO_HOST:
+		case CMD_RAW_TP_HOST_TO_ESP:
+			ESP_LOGI(TAG, "RAW TP init command %s", CMD_RAW_TP_ESP_TO_HOST ? "slave to host" : "host to slave");
+			process_raw_tp(if_type, payload, payload_len);
 			break;
 
 		default:
@@ -506,11 +525,9 @@ void process_rx_pkt(interface_buffer_handle_t *buf_handle)
 			process_hci_rx_pkt(payload, payload_len);
 		}
 #endif
-#if TEST_RAW_TP && TEST_RAW_TP__HOST_TO_ESP
 		else if (buf_handle->if_type == ESP_TEST_IF) {
 			debug_update_raw_tp_rx_count(payload_len);
 		}
-#endif
 	}
 	/* Free buffer handle */
 	if (buf_handle->free_buf_handle && buf_handle->priv_buffer_handle) {
@@ -551,9 +568,9 @@ int event_handler(uint8_t val)
 
 	case ESP_OPEN_DATA_PATH:
 
-		datapath = 1;
 		if (if_handle) {
 			if_handle->state = ACTIVE;
+			datapath = 1;
 			ESP_EARLY_LOGI(TAG, "Start Data Path");
 
 			if (init_sem) {
@@ -674,8 +691,6 @@ void app_main()
 	}
 	/*send capabilities to host*/
 	send_bootup_event_to_host(capa);
-
-	tcpip_adapter_init();
 
 	ESP_LOGI(TAG,"Initial set up done");
 }

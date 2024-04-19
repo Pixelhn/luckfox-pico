@@ -56,14 +56,14 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
-  #define CFG80211_INFORM_BSS(wiphy, chan, bssid, tsf, \
+  #define CFG80211_INFORM_BSS(wiphy, chan, type, bssid, tsf, \
 	  cap, beacon_interval, ie, ielen, sig, gfp) \
   cfg80211_inform_bss(wiphy, chan, bssid, tsf, \
 	  cap, beacon_interval, ie, ielen, sig, gfp)
 #else
-  #define CFG80211_INFORM_BSS(wiphy, chan, bssid, tsf, \
+  #define CFG80211_INFORM_BSS(wiphy, chan, type, bssid, tsf, \
 	  cap, beacon_interval, ie, ielen, signal, gfp) \
-  cfg80211_inform_bss(wiphy, chan, CFG80211_BSS_FTYPE_UNKNOWN, bssid, tsf, \
+  cfg80211_inform_bss(wiphy, chan, type, bssid, tsf, \
 	  cap, beacon_interval, ie, ielen, signal, gfp)
 #endif
 
@@ -178,7 +178,12 @@ void CFG80211_RX_ASSOC_RESP(struct net_device *dev,
 			    const u8 *req_ies, size_t req_ies_len)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0))
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0))
+	struct cfg80211_rx_assoc_resp_data resp = {0};
+#else
 	struct cfg80211_rx_assoc_resp resp = {0};
+#endif
 
 	resp.links[0].bss = bss;
 	resp.buf = (u8 *)buf;
@@ -223,6 +228,11 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 {
 	ether_addr_copy(dev->dev_addr, addr);
 }
+#endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0))
+#define spi_master			spi_controller
+#define spi_master_put(_ctlr)		spi_controller_put(_ctlr)
 #endif
 
 #endif

@@ -85,8 +85,8 @@ enum ESP_CAPABILITIES {
 };
 
 typedef enum {
-	ESP_TEST_RAW_TP = (1 << 0),
-	ESP_TEST_RAW_TP__ESP_TO_HOST = (1 << 1)
+	ESP_TEST_RAW_TP_HOST_TO_ESP = (1 << 0),
+	ESP_TEST_RAW_TP_ESP_TO_HOST = (1 << 1)
 } ESP_RAW_TP_MEASUREMENT;
 
 enum ESP_INTERNAL_MSG {
@@ -120,6 +120,9 @@ enum COMMAND_CODE {
 	CMD_SET_TXPOWER,
 	CMD_GET_REG_DOMAIN,
 	CMD_SET_REG_DOMAIN,
+	CMD_RAW_TP_ESP_TO_HOST,
+	CMD_RAW_TP_HOST_TO_ESP,
+	CMD_SET_WOW_CONFIG,
 	CMD_MAX,
 };
 
@@ -170,6 +173,8 @@ struct cmd_sta_auth {
 	uint8_t    channel;
 	uint8_t    auth_type;
 	char       ssid[MAX_SSID_LEN+1];
+	uint8_t    key_len;
+	uint8_t    key[27];
 	uint8_t    auth_data_len;
 	uint8_t    pad[2];
 	uint8_t    auth_data[];
@@ -226,6 +231,15 @@ struct wifi_sec_key {
 struct cmd_set_get_val {
 	struct     command_header header;
 	uint32_t   value;
+} __packed;
+
+struct cmd_wow_config {
+	struct command_header header;
+	uint8_t any;
+	uint8_t disconnect;
+	uint8_t magic_pkt;
+	uint8_t four_way_handshake;
+	uint8_t eap_identity_req;
 } __packed;
 
 struct cmd_reg_domain {

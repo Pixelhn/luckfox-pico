@@ -73,9 +73,22 @@ menu "Example Configuration"
     menu "SDIO Configuration"
         depends on ESP_SDIO_HOST_INTERFACE
 
+    choice
+        prompt "SDIO Bus Speed"
+        default ESP_SDIO_HIGH_SPEED
+        help
+            Select the SDIO Slave Bus Speed. Actual speed in use depends on SDIO bus speed the SDIO Master can support
+
+        config ESP_SDIO_DEFAULT_SPEED
+            bool "Default Speed (20 MHz)"
+
+        config ESP_SDIO_HIGH_SPEED
+            bool "High Speed (40 MHz)"
+    endchoice
+
     config ESP_SDIO_CHECKSUM
         bool "SDIO checksum ENABLE/DISABLE"
-		default n
+        default n
         help
             ENABLE/DISABLE software SDIO checksum
 
@@ -104,7 +117,8 @@ menu "Example Configuration"
 
     config ESP_CACHE_MALLOC
         bool "Cache allocated memory like mempool - helps to reduce malloc calls"
-        default n
+        default n if IDF_TARGET_ESP32C2
+        default y
         help
             Cache allocated memory - reduces number of malloc calls
 

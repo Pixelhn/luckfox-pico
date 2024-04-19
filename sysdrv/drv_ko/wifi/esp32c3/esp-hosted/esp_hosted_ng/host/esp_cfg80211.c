@@ -106,12 +106,36 @@ static const u32 esp_cipher_suites[] = {
 };
 
 static const struct wiphy_wowlan_support esp_wowlan_support = {
-	.flags = WIPHY_WOWLAN_ANY | WIPHY_WOWLAN_MAGIC_PKT,
+	.flags = WIPHY_WOWLAN_ANY | WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT | WIPHY_WOWLAN_4WAY_HANDSHAKE,
 	.n_patterns = 0,
 	.pattern_max_len = 0,
 	.pattern_min_len = 0,
 	.max_pkt_offset = 0,
 };
+
+/* TODO get MAX_TX_POWER_MBM from Firmware for future chips */
+#define MAX_TX_POWER_MBM (20 * 100)
+#define MIN_TX_POWER_MBM (8 * 100)
+static bool is_txpwr_valid(int mbm)
+{
+	if (mbm > MAX_TX_POWER_MBM)
+		return false;
+
+	if (mbm < MIN_TX_POWER_MBM)
+		return false;
+
+	return true;
+}
+
+static int mbm_to_esp_pwr(int mbm)
+{
+	return ((mbm * 4) / 100);
+}
+
+static int esp_pwr_to_dbm(int power)
+{
+	return ((power / 4));
+}
 
 static int esp_inetaddr_event(struct notifier_block *nb,
 	unsigned long event, void *data)
@@ -120,7 +144,7 @@ static int esp_inetaddr_event(struct notifier_block *nb,
 	struct net_device *netdev = ifa->ifa_dev ? ifa->ifa_dev->dev : NULL;
 	struct esp_wifi_device *priv = netdev_priv(netdev);
 
-	/*esp_info("------- IP event -------: %d\n", priv->if_type);*/
+	esp_verbose("------- IP event -------\n");
 
 	if (!strstr(netdev->name, "espsta")) {
 		return 0;
@@ -137,9 +161,10 @@ static int esp_inetaddr_event(struct notifier_block *nb,
 		break;
 
 	case NETDEV_DOWN:
-		esp_info("Interface Down: %d\n", priv->if_type);
-		if (priv && (priv->if_type == ESP_STA_IF))
+		if (priv && (priv->if_type == ESP_STA_IF)) {
 			cmd_set_ip_address(priv, 0);
+			esp_info("Interface Down: %d\n", priv->if_type);
+		}
 		break;
 	}
 
@@ -195,8 +220,9 @@ struct wireless_dev *esp_cfg80211_add_iface(struct wiphy *wiphy,
 	esp_wdev->ndev = ndev;
 	esp_wdev->adapter = esp_dev->adapter;
 	esp_wdev->adapter->priv[esp_nw_if_num] = esp_wdev;
-	/*esp_info("Updated priv[%u] to %px\n",
-	 * esp_nw_if_num, esp_wdev->adapter->priv[esp_nw_if_num]);*/
+	esp_wdev->tx_pwr = mbm_to_esp_pwr(MAX_TX_POWER_MBM);
+	esp_verbose("Updated priv[%u] to %px\n",
+                esp_nw_if_num, esp_wdev->adapter->priv[esp_nw_if_num]);
 	dev_net_set(ndev, wiphy_net(wiphy));
 	SET_NETDEV_DEV(ndev, wiphy_dev(esp_wdev->wdev.wiphy));
 	esp_wdev->wdev.netdev = ndev;
@@ -260,7 +286,6 @@ static int esp_cfg80211_scan(struct wiphy *wiphy,
 
 	struct net_device *ndev = NULL;
 	struct esp_wifi_device *priv = NULL;
-
 	if (!wiphy || !request || !request->wdev || !request->wdev->netdev) {
 		esp_info("%u invalid input\n", __LINE__);
 		return -EINVAL;
@@ -323,21 +348,7 @@ static int esp_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 				INT_LINK_ID u8 key_index, bool pairwise,
 				const u8 *mac_addr)
 {
-	struct esp_wifi_device *priv = NULL;
-
-	if (!wiphy || !dev) {
-		esp_err("%u invalid params\n", __LINE__);
-		return -EINVAL;
-	}
-
-	priv = netdev_priv(dev);
-	if (!priv) {
-		esp_err("Empty priv\n");
-		return -EINVAL;
-	}
-	esp_dbg("\n");
-
-	return cmd_del_key(priv, key_index, pairwise, mac_addr);
+	return 0;
 }
 
 static int esp_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
@@ -475,40 +486,57 @@ static int esp_cfg80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
 static int esp_cfg80211_suspend(struct wiphy *wiphy,
 			struct cfg80211_wowlan *wowlan)
 {
-	/*esp_dbg("\n");*/
-	return 0;
+	struct esp_adapter *adapter = esp_get_adapter();
+	struct esp_wifi_device *priv = NULL;
+
+	if (!wiphy || !adapter) {
+		esp_info("%u invalid input wiphy=%p adapter=%p\n", __LINE__, wiphy, adapter);
+		return -EINVAL;
+	}
+
+	if (!wowlan) {
+		esp_dbg("%u wow config is not set, still suspending\n", __LINE__);
+		return 0;
+	}
+
+	esp_dbg("wow any=%d disconnect=%d magic_pkt=%d four_way_handshake=%d eap_identity_req=%d",
+		    wowlan->any, wowlan->disconnect, wowlan->magic_pkt,
+		    wowlan->four_way_handshake, wowlan->eap_identity_req);
+
+	priv = adapter->priv[0];
+	if (!priv) {
+		esp_err("Empty priv\n");
+		return 0;
+	}
+
+	return cmd_set_wow_config(priv, wowlan);
 }
 
 static int esp_cfg80211_resume(struct wiphy *wiphy)
 {
-	/*esp_dbg("\n");*/
-	return 0;
+	struct esp_adapter *adapter = esp_get_adapter();
+	struct esp_wifi_device *priv = NULL;
+	struct cfg80211_wowlan wowlan = {0};
+
+	esp_dbg("\n");
+	if (!wiphy || !adapter) {
+		esp_info("%u invalid input %p %p\n", __LINE__, wiphy, adapter);
+		return -EINVAL;
+	}
+
+	priv = adapter->priv[0];
+	if (!priv) {
+		esp_err("Empty priv\n");
+		return 0;
+	}
+
+	return cmd_set_wow_config(priv, &wowlan);
 }
 
 static void esp_cfg80211_set_wakeup(struct wiphy *wiphy,
 			bool enabled)
 {
 	/*esp_dbg("\n");*/
-}
-
-/* TODO get MAX_TX_POWER_MBM from Firmware for future chips */
-#define MAX_TX_POWER_MBM (20 * 100)
-static bool is_txpwr_valid(int mbm)
-{
-	if (mbm > MAX_TX_POWER_MBM)
-		return false;
-
-	return true;
-}
-
-static int mbm_to_esp_pwr(int mbm)
-{
-	return ((mbm * 4) / 100);
-}
-
-static int esp_pwr_to_dbm(int power)
-{
-	return ((power / 4));
 }
 
 static int esp_cfg80211_set_tx_power(struct wiphy *wiphy,
@@ -539,7 +567,7 @@ static int esp_cfg80211_set_tx_power(struct wiphy *wiphy,
         case NL80211_TX_POWER_LIMITED:
                 if (!is_txpwr_valid(mbm)) {
                         esp_warn("mbm:%d not support\n", mbm);
-			return -EOPNOTSUPP;
+			return -EINVAL;
                 }
                 priv->tx_pwr_type = NL80211_TX_POWER_LIMITED;
                 priv->tx_pwr = mbm_to_esp_pwr(mbm);
@@ -552,6 +580,39 @@ static int esp_cfg80211_set_tx_power(struct wiphy *wiphy,
         }
 
 	return cmd_set_tx_power(priv, priv->tx_pwr);
+}
+
+static int esp_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
+				    const u8 *mac, struct station_info *sinfo)
+{
+	struct esp_wifi_device *priv = NULL;
+
+	priv = netdev_priv(ndev);
+
+	if (!mac || !priv) {
+		esp_err("mac=%p priv=%p\n", mac, priv);
+		return -ENOENT;
+	}
+	if (wireless_dev_current_bss_exists(&priv->wdev)) {
+
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->signal = priv->rssi;
+
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES);
+		sinfo->rx_bytes = priv->stats.rx_bytes;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
+		sinfo->rx_packets = priv->stats.rx_packets;
+
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES);
+		sinfo->tx_bytes = priv->stats.tx_bytes;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
+		sinfo->tx_packets = priv->stats.tx_packets;
+
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_FAILED);
+		sinfo->tx_failed = priv->stats.tx_dropped;
+	}
+
+	return 0;
 }
 
 static int esp_cfg80211_get_tx_power(struct wiphy *wiphy,
@@ -572,6 +633,8 @@ static int esp_cfg80211_get_tx_power(struct wiphy *wiphy,
 		esp_err("Empty priv\n");
 		return -EINVAL;
 	}
+	/* Update Tx power from firmware */
+	//cmd_get_tx_power(priv);
 
 	*dbm = esp_pwr_to_dbm(priv->tx_pwr);
 
@@ -600,6 +663,7 @@ static struct cfg80211_ops esp_cfg80211_ops = {
 	.set_wakeup = esp_cfg80211_set_wakeup,
 	.set_tx_power = esp_cfg80211_set_tx_power,
 	.get_tx_power = esp_cfg80211_get_tx_power,
+	.get_station = esp_cfg80211_get_station,
 };
 
 static void esp_reg_notifier(struct wiphy *wiphy,
@@ -614,14 +678,20 @@ static void esp_reg_notifier(struct wiphy *wiphy,
 		return;
 	}
 
+	if (!test_bit(ESP_INIT_DONE, &adapter->state_flags)) {
+		esp_info("Driver init is ongoing\n");
+		return;
+	}
+	if (test_bit(ESP_CLEANUP_IN_PROGRESS, &adapter->state_flags)) {
+		esp_info("Driver cleanup is ongoing\n");
+		return;
+	}
+
 	esp_dev = wiphy_priv(wiphy);
 
 	if (!esp_dev || !esp_dev->adapter) {
 		esp_info("%u esp_dev not initialized yet \n", __LINE__);
 		return;
-	}
-	if (test_bit(ESP_CLEANUP_IN_PROGRESS, &adapter->state_flags)) {
-               return;
 	}
 
 	priv = esp_dev->adapter->priv[0];
@@ -646,16 +716,21 @@ static void esp_reg_notifier(struct wiphy *wiphy,
 
 	/* Don't send same regdom info to firmware */
 	if (strncmp(request->alpha2, priv->country_code, strlen(request->alpha2))) {
-		strlcpy(priv->country_code, request->alpha2, MAX_COUNTRY_LEN);
+		strscpy(priv->country_code, request->alpha2, MAX_COUNTRY_LEN);
 		cmd_set_reg_domain(priv);
 	}
 }
 
-int esp_cfg80211_register(struct esp_adapter *adapter)
+int esp_add_wiphy(struct esp_adapter *adapter)
 {
 	struct wiphy *wiphy;
 	struct esp_device *esp_dev;
 	int ret = 0;
+
+	if (!adapter) {
+		esp_info("adapter not yet initialized\n");
+		return -EINVAL;
+	}
 
 	wiphy = wiphy_new(&esp_cfg80211_ops, sizeof(struct esp_device));
 
@@ -701,28 +776,35 @@ int esp_cfg80211_register(struct esp_adapter *adapter)
 	return ret;
 }
 
-int esp_mark_disconnect(struct esp_wifi_device *priv, uint16_t reason,
-		uint8_t locally_disconnect)
+int esp_remove_wiphy(struct esp_adapter *adapter)
 {
-	if (priv && priv->ndev)
-		if (priv->ndev->reg_state == NETREG_REGISTERED)
-			CFG80211_DISCONNECTED(priv->ndev, reason, NULL, 0, locally_disconnect,
-					GFP_KERNEL);
+	if (adapter && adapter->wiphy) {
+		wiphy_unregister(adapter->wiphy);
+		wiphy_free(adapter->wiphy);
+		adapter->wiphy = NULL;
+	}
+
 	return 0;
 }
 
-int esp_mark_scan_done_and_disconnect(struct esp_wifi_device *priv,
-		uint8_t locally_disconnect)
+int esp_mark_disconnect(struct esp_wifi_device *priv, uint16_t reason, uint8_t locally_disconnect)
+{
+	if (priv && priv->ndev && wireless_dev_current_bss_exists(&priv->wdev))
+		CFG80211_DISCONNECTED(priv->ndev, reason, NULL, 0, locally_disconnect, GFP_KERNEL);
+
+	return 0;
+}
+
+int esp_mark_scan_done_and_disconnect(struct esp_wifi_device *priv, uint8_t locally_disconnect)
 {
 
 	if (!priv)
 		return -EINVAL;
 
+	if (priv->wdev.iftype != NL80211_IFTYPE_STATION)
+		return 0;
+
 	ESP_MARK_SCAN_DONE(priv, true);
-
 	ESP_CANCEL_SCHED_SCAN();
-
-	esp_mark_disconnect(priv, 0, locally_disconnect);
-
-	return 0;
+	return esp_mark_disconnect(priv, 0, locally_disconnect);
 }

@@ -1,6 +1,9 @@
-CONFIG_SUPPORT_ESP_SERIAL = y
 CONFIG_TEST_RAW_TP := n
-CONFIG_ENABLE_MONITOR_PROCESS = n
+
+CONFIG_INFO_LOGS=y
+CONFIG_DEBUG_LOGS=n
+CONFIG_VERBOSE_LOGS=n
+
 # In case of SDIO as transport, one of slave chipset used,
 # CONFIG_TARGET_ESP32  OR
 # CONFIG_TARGET_ESP32C6
@@ -9,11 +12,11 @@ CONFIG_ENABLE_MONITOR_PROCESS = n
 ESP_SLAVE := ""
 
 # Toolchain Path
-CROSS_COMPILE := /usr/bin/arm-linux-gnueabihf-
+CROSS_COMPILE :=
 # Linux Kernel header
 KERNEL := /lib/modules/$(shell uname -r)/build
 # Architecture
-ARCH := arm
+ARCH := arm64
 
 #Default interface is sdio
 MODULE_NAME=esp32_sdio
@@ -27,16 +30,8 @@ ifeq ($(target), spi)
 	MODULE_NAME=esp32_spi
 endif
 
-ifeq ($(CONFIG_SUPPORT_ESP_SERIAL), y)
-	EXTRA_CFLAGS += -DCONFIG_SUPPORT_ESP_SERIAL
-endif
-
 ifeq ($(CONFIG_TEST_RAW_TP), y)
 	EXTRA_CFLAGS += -DCONFIG_TEST_RAW_TP
-endif
-
-ifeq ($(CONFIG_ENABLE_MONITOR_PROCESS), y)
-	EXTRA_CFLAGS += -DCONFIG_ENABLE_MONITOR_PROCESS
 endif
 
 EXTRA_CFLAGS += -I$(PWD)/../../../../common/include -I$(PWD)
@@ -55,14 +50,30 @@ ifneq ($(ESP_SLAVE), "")
 EXTRA_CFLAGS += -D$(ESP_SLAVE)
 endif
 
+ifeq ($(CONFIG_ENABLE_MONITOR_PROCESS), y)
+	EXTRA_CFLAGS += -DCONFIG_ENABLE_MONITOR_PROCESS
+endif
+
+ifeq ($(CONFIG_INFO_LOGS), y)
+	EXTRA_CFLAGS += -DCONFIG_INFO_LOGS
+endif
+
+ifeq ($(CONFIG_DEBUG_LOGS), y)
+	EXTRA_CFLAGS += -DCONFIG_INFO_LOGS
+	EXTRA_CFLAGS += -DCONFIG_DEBUG_LOGS
+endif
+
+ifeq ($(CONFIG_VERBOSE_LOGS), y)
+	EXTRA_CFLAGS += -DCONFIG_INFO_LOGS
+	EXTRA_CFLAGS += -DCONFIG_DEBUG_LOGS
+	EXTRA_CFLAGS += -DCONFIG_VERBOSE_LOGS
+endif
+
 PWD := $(shell pwd)
 
 obj-m := $(MODULE_NAME).o
 $(MODULE_NAME)-y := esp_bt.o main.o esp_stats.o $(module_objects)
-
-ifeq ($(CONFIG_SUPPORT_ESP_SERIAL), y)
-	$(MODULE_NAME)-y += esp_serial.o esp_rb.o
-endif
+$(MODULE_NAME)-y += esp_serial.o esp_rb.o
 
 all: clean
 	make ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C $(KERNEL) M=$(PWD) modules

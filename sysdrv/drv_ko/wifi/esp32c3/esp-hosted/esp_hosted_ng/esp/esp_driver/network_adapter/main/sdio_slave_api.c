@@ -30,6 +30,7 @@
 #include "endian.h"
 #include "freertos/semphr.h"
 #include "stats.h"
+#include "soc/gpio_reg.h"
 
 static uint8_t sdio_slave_rx_buffer[RX_BUF_NUM][RX_BUF_SIZE];
 
@@ -102,6 +103,7 @@ static void sdio_read_done(void *handle)
 static interface_handle_t * sdio_init(void)
 {
 	esp_err_t ret = ESP_OK;
+	sdio_slave_buf_handle_t handle = {0};
 	sdio_slave_config_t config = {
 		.sending_mode       = SDIO_SLAVE_SEND_STREAM,
 		.send_queue_size    = SDIO_SLAVE_QUEUE_SIZE,
@@ -114,8 +116,18 @@ static interface_handle_t * sdio_init(void)
 		   bus in your real design.
 		   */
 		//.flags              = SDIO_SLAVE_FLAG_INTERNAL_PULLUP,
+		/* Note: Sometimes the SDIO card is detected but gets problem in
+		 * Read/Write or handling ISR because of SDIO timing issues.
+		 * In these cases, Please tune timing below using value from
+		 * https://github.com/espressif/esp-idf/blob/release/v5.0/components/hal/include/hal/sdio_slave_types.h#L26-L38
+		 * */
+#if defined(CONFIG_IDF_TARGET_ESP32C6)
+		.timing             = SDIO_SLAVE_TIMING_NSEND_PSAMPLE,
+#endif
 	};
-	sdio_slave_buf_handle_t handle;
+#ifdef CONFIG_SDIO_DEFAULT_SPEED
+	config.flags |= SDIO_SLAVE_FLAG_DEFAULT_SPEED;
+#endif
 
 	/* Configuration for the OOB line */
 	gpio_config_t io_conf={
@@ -291,8 +303,6 @@ esp_err_t send_bootup_event_to_host(uint8_t cap)
 	uint8_t * pos = NULL;
 	esp_err_t ret = ESP_OK;
 	uint16_t len = 0;
-	uint8_t raw_tp_cap = 0;
-	raw_tp_cap = debug_get_raw_tp_conf();
 
 	memset(&buf_handle, 0, sizeof(buf_handle));
 
@@ -324,10 +334,6 @@ esp_err_t send_bootup_event_to_host(uint8_t cap)
 	*pos = ESP_BOOTUP_CAPABILITY;         pos++;len++;
 	*pos = LENGTH_1_BYTE;                 pos++;len++;
 	*pos = cap;                           pos++;len++;
-
-	*pos = ESP_BOOTUP_TEST_RAW_TP;        pos++;len++;
-	*pos = LENGTH_1_BYTE;                 pos++;len++;
-	*pos = raw_tp_cap;                    pos++;len++;
 
 	/* TLV - FW data */
 	*pos = ESP_BOOTUP_FW_DATA;            pos++; len++;

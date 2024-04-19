@@ -500,6 +500,13 @@ static esp_err_t req_connect_ap_handler (CtrlMsg *req,
 		wifi_cfg->sta.listen_interval = req->req_connect_ap->listen_interval;
 	}
 
+	/* Make sure that we connect to strongest signal, when multiple SSID with
+	 * the same name. This should take a small extra time to search for all SSIDs,
+	 * but with this, there will be hige performace gain on data throughput
+	 */
+	wifi_cfg->sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+	wifi_cfg->sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+
 	ret = esp_wifi_get_mac(ESP_IF_WIFI_STA , mac);
 	ESP_LOGI(TAG,"Get station mac address");
 	if (ret) {
@@ -2009,8 +2016,10 @@ static void esp_ctrl_msg_cleanup(CtrlMsg *resp)
 
 	switch (resp->msg_id) {
 		case (CTRL_MSG_ID__Resp_GetMACAddress ) : {
-			mem_free(resp->resp_get_mac_address->mac.data);
-			mem_free(resp->resp_get_mac_address);
+			if (resp->resp_get_mac_address) {
+				mem_free(resp->resp_get_mac_address->mac.data);
+				mem_free(resp->resp_get_mac_address);
+			}
 			break;
 		} case (CTRL_MSG_ID__Resp_GetWifiMode) : {
 			mem_free(resp->resp_get_wifi_mode);
@@ -2019,22 +2028,30 @@ static void esp_ctrl_msg_cleanup(CtrlMsg *resp)
 			mem_free(resp->resp_set_wifi_mode);
 			break;
 		} case (CTRL_MSG_ID__Resp_GetAPConfig ) : {
-			mem_free(resp->resp_get_ap_config->ssid.data);
-			mem_free(resp->resp_get_ap_config->bssid.data);
-			mem_free(resp->resp_get_ap_config);
+			if (resp->resp_get_ap_config) {
+				mem_free(resp->resp_get_ap_config->ssid.data);
+				mem_free(resp->resp_get_ap_config->bssid.data);
+				mem_free(resp->resp_get_ap_config);
+			}
 			break;
 		} case (CTRL_MSG_ID__Resp_ConnectAP ) : {
-			mem_free(resp->resp_connect_ap->mac.data);
-			mem_free(resp->resp_connect_ap);
+			if (resp->resp_connect_ap) {
+				mem_free(resp->resp_connect_ap->mac.data);
+				mem_free(resp->resp_connect_ap);
+			}
 			break;
 		} case (CTRL_MSG_ID__Resp_GetSoftAPConfig ) : {
-			mem_free(resp->resp_get_softap_config->ssid.data);
-			mem_free(resp->resp_get_softap_config->pwd.data);
-			mem_free(resp->resp_get_softap_config);
+			if (resp->resp_get_softap_config) {
+				mem_free(resp->resp_get_softap_config->ssid.data);
+				mem_free(resp->resp_get_softap_config->pwd.data);
+				mem_free(resp->resp_get_softap_config);
+			}
 			break;
 		} case (CTRL_MSG_ID__Resp_StartSoftAP ) : {
-			mem_free(resp->resp_start_softap->mac.data);
-			mem_free(resp->resp_start_softap);
+			if (resp->resp_start_softap) {
+				mem_free(resp->resp_start_softap->mac.data);
+				mem_free(resp->resp_start_softap);
+			}
 			break;
 		} case (CTRL_MSG_ID__Resp_DisconnectAP ) : {
 			mem_free(resp->resp_disconnect_ap);
@@ -2146,6 +2163,10 @@ esp_err_t data_transfer_handler(uint32_t session_id,const uint8_t *inbuf,
 	ctrl_msg__init (&resp);
 	resp.msg_type = CTRL_MSG_TYPE__Resp;
 	resp.msg_id = req->msg_id - CTRL_MSG_ID__Req_Base + CTRL_MSG_ID__Resp_Base;
+
+	// link the response to the request via the request id
+	resp.uid = req->uid;
+
 	ret = esp_ctrl_msg_command_dispatcher(req,&resp,NULL);
 	if (ret) {
 		ESP_LOGE(TAG, "Command dispatching not happening");

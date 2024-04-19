@@ -36,34 +36,88 @@
 #define thread_handle_t pthread_t
 #define semaphore_handle_t sem_t
 
-
 struct serial_drv_handle_t {
 	int file_desc;
 };
 
-struct timer_handle_t {
-	timer_t timer_id;
-};
-
-static struct serial_drv_handle_t* serial_drv_handle;
-
 extern int errno;
 
-int control_path_platform_init(void)
-{
-	/* 1. Open serial file
-	 * 2. Flush all data available for reading
-	 * 3. Close serial file
-	 **/
-	int ret = 0, count = 0;
-	uint8_t *buf = NULL;
-	struct serial_drv_handle_t init_serial_handle = {0};
-	const char* transport = SERIAL_IF_FILE;
+#if defined __ANDROID__
+/* Android does not implement pthread_cancel()
+ *
+ * As a workaround, the created thread is marked as cancelable by
+ * the SIGUSR1 signal. This signal is sent to the thread when our
+ * version of pthread_cancel() is called, which executes pthread_exit()
+ * on the thread.
+ */
+#include <signal.h>
+#define SIG_CANCEL_SIGNAL SIGUSR1
 
-	/* open file */
-	init_serial_handle.file_desc = open(transport,O_NONBLOCK|O_RDWR);
-	if (init_serial_handle.file_desc == -1) {
-		printf("Failed to open driver interface \n");
+static void thread_cancel_signal_handler(int sig_num);
+static int mark_thread_cancelable();
+static int local_pthread_cancel(pthread_t thread);
+
+static void thread_cancel_signal_handler(int sig_num)
+{
+	if (sig_num == SIG_CANCEL_SIGNAL) {
+		printf("Exiting thread via signal handler\n");
+		pthread_exit(0);
+	}
+}
+
+/* This function can be called in the place of pthread_setcancelstate()
+ * and setcanceltype()
+ * Note it must be called for cancelable threads
+ */
+static int mark_thread_cancelable(void)
+{
+	struct sigaction action;
+	memset(&action, 0, sizeof(action));
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
+	action.sa_handler = &thread_cancel_signal_handler;
+
+	return sigaction(SIG_CANCEL_SIGNAL, &action, NULL);
+}
+
+static int local_pthread_cancel(pthread_t thread) {
+	return pthread_kill(thread, SIG_CANCEL_SIGNAL);
+}
+#endif
+
+static int set_read_access_nonblocking(struct serial_drv_handle_t* handle, bool enable)
+{
+	int flags;
+
+	// get the current file access mode
+	flags = fcntl(handle->file_desc, F_GETFL);
+	if (flags < 0) {
+		printf("%s: Error: fcntl(F_GETFL) failed\n", __func__);
+		return FAILURE;
+	}
+
+	if (enable) {
+		flags |= O_NONBLOCK;
+	} else {
+		flags &= ~O_NONBLOCK;
+	}
+	// set the new file access mode
+	fcntl(handle->file_desc, F_SETFL, flags);
+
+	return SUCCESS;
+}
+
+int control_path_platform_init(struct serial_drv_handle_t* serial_drv_handle)
+{
+	/* 1. Switch to non-blocking
+	 * 2. Flush all data available for reading
+	 * 3. Switch back to blocking
+	 **/
+	int count = 0;
+	uint8_t *buf = NULL;
+
+	if (!serial_drv_handle) {
+		printf("%s: Error: serial_drv_handle not initialised\n", __func__);
 		return FAILURE;
 	}
 
@@ -73,9 +127,15 @@ int control_path_platform_init(void)
 		goto close1;
 	}
 
+	/* set to non-blocking to flush stale messages */
+	if (SUCCESS != set_read_access_nonblocking(serial_drv_handle, true)) {
+		printf("%s: failed to set_read_access to nonblocking\n", __func__);
+		goto close;
+	}
+
 	do {
 		/* dummy read, discard data */
-		count = read(init_serial_handle.file_desc,
+		count = read(serial_drv_handle->file_desc,
 				(buf), (DUMMY_READ_BUF_LEN));
 		if (count < 0) {
 			if (-errno != -EAGAIN) {
@@ -87,23 +147,21 @@ int control_path_platform_init(void)
 	} while (count>0);
 
 	mem_free(buf);
-	/* close file */
-	ret = close(init_serial_handle.file_desc);
-	if (ret < 0) {
-		perror("close:");
-		return FAILURE;
+
+	/* set to blocking: expected behaviour of read() in the rx thread */
+	if (SUCCESS != set_read_access_nonblocking(serial_drv_handle, false)) {
+		printf("%s: failed to set_read_access back to blocking\n", __func__);
+		goto close1;
 	}
+
 	return SUCCESS;
 
 close:
 	mem_free(buf);
 close1:
-	ret = close(init_serial_handle.file_desc);
-	if (ret < 0) {
-		perror("close: Failed to close interface for control path platform init:");
-	}
+	/* switch back to blocking mode before failure exit */
+	set_read_access_nonblocking(serial_drv_handle, false);
 	return FAILURE;
-
 }
 
 int control_path_platform_deinit(void)
@@ -147,6 +205,10 @@ static void *thread_routine(void *arg)
 
 	mem_free(thread_arg);
 
+#if defined __ANDROID__
+	hosted_thread_create_hook();
+#endif
+
 	if (new_thread_arg.thread_cb)
 		new_thread_arg.thread_cb(new_thread_arg.arg);
 	else
@@ -177,6 +239,13 @@ void *hosted_thread_create(void (*start_routine)(void const *), void *arg)
 	return thread_handle;
 }
 
+#if defined __ANDROID__
+void hosted_thread_create_hook(void)
+{
+	mark_thread_cancelable();
+}
+#endif
+
 int hosted_thread_cancel(void *thread_handle)
 {
 	thread_handle_t *thread_hdl = NULL;
@@ -185,7 +254,11 @@ int hosted_thread_cancel(void *thread_handle)
 		return FAILURE;
 	thread_hdl = (thread_handle_t *)thread_handle;
 
+#if defined __ANDROID__
+	int s = local_pthread_cancel(*thread_hdl);
+#else
 	int s = pthread_cancel(*thread_hdl);
+#endif
 	if (s != 0) {
 		mem_free(thread_handle);
 		printf("Prob in pthread_cancel\n");
@@ -303,6 +376,14 @@ int hosted_destroy_semaphore(void * semaphore_handle)
 
 /* -------- Timers  ---------- */
 
+typedef void (*hosted_timer_cb_t) (void const* resp);
+
+struct timer_handle_t {
+	timer_t timer_id;
+	hosted_timer_cb_t timer_cb;
+	void * arg;
+};
+
 int hosted_timer_stop(void *timer_handle)
 {
 	if (timer_handle) {
@@ -324,19 +405,12 @@ int hosted_timer_stop(void *timer_handle)
  * }
  **/
 
-typedef void (*hosted_timer_cb_t) (void const* resp);
-
-struct timer_arg_t {
-	hosted_timer_cb_t timer_cb;
-	void * arg;
-};
-
 static void timer_ll_callback(union sigval timer_data)
 {
-	struct timer_arg_t *timer_arg = timer_data.sival_ptr;
+	struct timer_handle_t *timer_handle = timer_data.sival_ptr;
 
-	if (timer_arg->timer_cb)
-		timer_arg->timer_cb(timer_arg->arg);
+	if (timer_handle->timer_cb)
+		timer_handle->timer_cb(timer_handle->arg);
 	else
 		printf("NULL func, failed to call callback\n");
 }
@@ -345,10 +419,15 @@ void *hosted_timer_start(int duration, int type,
 		void (*timeout_handler)(void const *), void * arg)
 {
 	int res = 0;
-	struct timer_arg_t timer_arg;
-	struct timer_handle_t *timer_handle = (struct timer_handle_t *)hosted_malloc(
-			sizeof(struct timer_handle_t));
+	struct timer_handle_t *timer_handle = NULL;
 
+	if (!timeout_handler) {
+		printf("Error: NULL timeout_hander\n");
+		return NULL;
+	}
+
+	timer_handle = (struct timer_handle_t *)hosted_malloc(
+			sizeof(struct timer_handle_t));
 	if (!timer_handle) {
 		printf("Mem Alloc for Timer failed\n");
 		mem_free(timer_handle);
@@ -368,17 +447,18 @@ void *hosted_timer_start(int duration, int type,
 		.it_interval.tv_nsec = 0
 	};
 
-	timer_arg.timer_cb = timeout_handler;
-	timer_arg.arg = arg;
+	timer_handle->timer_cb = timeout_handler;
+	timer_handle->arg = arg;
 
 	if (type == CTRL__TIMER_PERIODIC) {
+		assert(0); // periodic timers not supported for now
 		its.it_interval.tv_sec = duration;
 	}
 
 	sev.sigev_notify = SIGEV_THREAD;
 	sev.sigev_notify_function = timer_ll_callback;
 	sev.sigev_signo = SIGRTMAX-1;
-	sev.sigev_value.sival_ptr = &timer_arg;
+	sev.sigev_value.sival_ptr = timer_handle;
 
 
 	/* create timer */
@@ -410,12 +490,7 @@ struct serial_drv_handle_t* serial_drv_open(const char *transport)
 		return NULL;
 	}
 
-	if(serial_drv_handle) {
-		//printf("return orig hndl\n");
-		return serial_drv_handle;
-	}
-
-	serial_drv_handle = (struct serial_drv_handle_t *)
+	struct serial_drv_handle_t * serial_drv_handle = (struct serial_drv_handle_t *)
 		hosted_calloc(1, sizeof(struct serial_drv_handle_t));
 	if (!serial_drv_handle) {
 		printf("%s, Failed to allocate memory \n",__func__);
@@ -424,6 +499,20 @@ struct serial_drv_handle_t* serial_drv_open(const char *transport)
 
 	serial_drv_handle->file_desc = open(transport, O_RDWR);
 	if (serial_drv_handle->file_desc == -1) {
+		int errsv = errno;
+		printf("%s failed: ", __func__);
+		switch (errsv) {
+			case EBUSY: {
+				printf("it is busy\n");
+				break;
+			} case ENOENT: {
+				printf("driver not loaded\n");
+				break;
+			} default: {
+				printf("errno %d\n", errsv);
+				break;
+			}
+		}
 		mem_free(serial_drv_handle);
 		return NULL;
 	}

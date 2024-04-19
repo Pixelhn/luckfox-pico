@@ -8,16 +8,15 @@
 #include "utils.h"
 #include "esp_cmd.h"
 #include "esp_api.h"
-#include "esp_wpa_utils.h"
+#include "esp_utils.h"
 #include "esp.h"
 #include "esp_cfg80211.h"
 #include "esp_kernel_port.h"
-
-#define PRINT_HEXDUMP(STR, ARG, ARG_LEN, level) \
-	print_hex_dump(KERN_INFO, STR, DUMP_PREFIX_ADDRESS, 16, 1, ARG, ARG_LEN, 1);
+#include "esp_stats.h"
 
 #define COMMAND_RESPONSE_TIMEOUT (5 * HZ)
 u8 ap_bssid[MAC_ADDR_LEN];
+extern u32 raw_tp_mode;
 
 int internal_scan_request(struct esp_wifi_device *priv, char *ssid,
 		uint8_t channel, uint8_t is_blocking);
@@ -49,14 +48,22 @@ static struct command_node *get_free_cmd_node(struct esp_adapter *adapter)
 		esp_err("No free cmd node skb found\n");
 	}
 
+	cmd_node->in_cmd_queue = true;
+
 	return cmd_node;
 }
 
 static inline void reset_cmd_node(struct esp_adapter *adapter, struct command_node *cmd_node)
 {
-	cmd_node->cmd_code = 0;
-
 	spin_lock_bh(&adapter->cmd_lock);
+
+	if (cmd_node->in_cmd_queue) {
+		esp_verbose("recycling command still in cmd queue\n");
+		spin_lock_bh(&adapter->cmd_pending_queue_lock);
+		list_del(&cmd_node->list);
+		spin_unlock_bh(&adapter->cmd_pending_queue_lock);
+	}
+	cmd_node->cmd_code = 0;
 	if (cmd_node->resp_skb) {
 		dev_kfree_skb_any(cmd_node->resp_skb);
 		cmd_node->resp_skb = NULL;
@@ -125,10 +132,12 @@ static int decode_tx_power(struct esp_wifi_device *priv,
 		ret = -1;
 	}
 
+#if 0  //TODO firmware is not returning correct tx power value, remove this once we update IDF version
 	if (priv)
 		priv->tx_pwr = header->value;
 	else
 		esp_err("priv not updated\n");
+#endif
 
 	return ret;
 }
@@ -200,10 +209,10 @@ static int wait_and_decode_cmd_resp(struct esp_wifi_device *priv,
 		return 0;
 
 	if (ret == 0) {
-		esp_err("Command[%u] timed out\n", cmd_node->cmd_code);
+		esp_err("Command[0x%X] timed out\n", cmd_node->cmd_code);
 		ret = -EINVAL;
 	} else {
-		/*esp_dbg("Resp for command [%u]\n", cmd_node->cmd_code);*/
+		esp_verbose("Resp for command [0x%X]\n", cmd_node->cmd_code);
 		ret = 0;
 	}
 
@@ -235,6 +244,9 @@ static int wait_and_decode_cmd_resp(struct esp_wifi_device *priv,
 	case CMD_SET_MCAST_MAC_ADDR:
 	case CMD_GET_REG_DOMAIN:
 	case CMD_SET_REG_DOMAIN:
+	case CMD_RAW_TP_ESP_TO_HOST:
+	case CMD_RAW_TP_HOST_TO_ESP:
+	case CMD_SET_WOW_CONFIG:
 		/* intentional fallthrough */
 		if (ret == 0)
 			ret = decode_common_resp(cmd_node);
@@ -327,8 +339,9 @@ static void esp_cmd_work(struct work_struct *work)
 	spin_lock_bh(&adapter->cmd_lock);
 	if (adapter->cur_cmd) {
 		/* Busy in another command */
-		/*esp_dbg("Busy in another cmd execution\n");*/
+		esp_verbose("Busy in another cmd execution\n");
 		spin_unlock_bh(&adapter->cmd_lock);
+		/* We should queue ourself here and remove the queuing from process_cmd_resp */
 		return;
 	}
 
@@ -336,7 +349,7 @@ static void esp_cmd_work(struct work_struct *work)
 
 	if (list_empty(&adapter->cmd_pending_queue)) {
 		/* No command to process */
-		/*esp_dbg("No more command in queue.\n");*/
+		esp_verbose("No more command in queue.\n");
 		spin_unlock_bh(&adapter->cmd_pending_queue_lock);
 		spin_unlock_bh(&adapter->cmd_lock);
 		return;
@@ -350,12 +363,14 @@ static void esp_cmd_work(struct work_struct *work)
 		spin_unlock_bh(&adapter->cmd_lock);
 		return;
 	}
-	/*esp_dbg("Processing Command [0x%X]\n", cmd_node->cmd_code);*/
+	esp_verbose("Processing Command [0x%X]\n", cmd_node->cmd_code);
 
 	list_del(&cmd_node->list);
+	cmd_node->in_cmd_queue = false;
 
-	if (!cmd_node->cmd_skb) {
-		esp_dbg("cmd_node->cmd_skb NULL\n");
+	/* this should never happen */
+	if (!cmd_node->cmd_skb || !cmd_node->cmd_code) {
+		esp_warn("cmd_node->cmd_skb =%p , cmd_code=[0x%X]\n", cmd_node->cmd_skb, cmd_node->cmd_code);
 		spin_unlock_bh(&adapter->cmd_pending_queue_lock);
 		spin_unlock_bh(&adapter->cmd_lock);
 		return;
@@ -372,28 +387,30 @@ static void esp_cmd_work(struct work_struct *work)
 					payload_header->len+payload_header->offset));
 
 	ret = esp_send_packet(adapter, cmd_node->cmd_skb);
-	spin_unlock_bh(&adapter->cmd_lock);
 
 	if (ret) {
 		esp_err("Failed to send command [0x%X]\n", cmd_node->cmd_code);
 		adapter->cur_cmd = NULL;
 		spin_unlock_bh(&adapter->cmd_pending_queue_lock);
-		recycle_cmd_node(adapter, cmd_node);
+		spin_unlock_bh(&adapter->cmd_lock);
 		return;
 	}
 
 	if (!list_empty(&adapter->cmd_pending_queue)) {
-		/*esp_dbg("Ym2: Pending cmds, queue work again\n");*/
+		esp_verbose("Pending cmds, queue work again\n");
 		spin_unlock_bh(&adapter->cmd_pending_queue_lock);
+		spin_unlock_bh(&adapter->cmd_lock);
+                /* should we wait before queuing the work again? */
 		queue_work(adapter->cmd_wq, &adapter->cmd_work);
 		return;
 	}
 	spin_unlock_bh(&adapter->cmd_pending_queue_lock);
+	spin_unlock_bh(&adapter->cmd_lock);
 }
 
 static int create_cmd_wq(struct esp_adapter *adapter)
 {
-	adapter->cmd_wq = alloc_workqueue("ESP_CMD_WORK_QUEUE", 0, 0);
+	adapter->cmd_wq = create_singlethread_workqueue("ESP_CMD_WORK_QUEUE");
 
 	RET_ON_FAIL(!adapter->cmd_wq);
 
@@ -426,6 +443,10 @@ struct command_node *prepare_command_request(struct esp_adapter *adapter, u8 cmd
 		esp_err("unsupported command code\n");
 		return NULL;
 	}
+	if (!test_bit(ESP_CMD_INIT_DONE, &adapter->state_flags)) {
+		esp_err("command queue init is not done yet\n");
+		return NULL;
+	}
 
 	node = get_free_cmd_node(adapter);
 
@@ -450,7 +471,6 @@ struct command_node *prepare_command_request(struct esp_adapter *adapter, u8 cmd
 	cmd->cmd_code = cmd_code;
 
 /*	payload_header->checksum = cpu_to_le16(compute_checksum(skb->data, len));*/
-
 	return node;
 }
 
@@ -465,17 +485,17 @@ int process_cmd_resp(struct esp_adapter *adapter, struct sk_buff *skb)
 		return -1;
 	}
 
+	spin_lock_bh(&adapter->cmd_lock);
 	if (!adapter->cur_cmd) {
 		esp_err("Command response not expected\n");
 		dev_kfree_skb_any(skb);
+		spin_unlock_bh(&adapter->cmd_lock);
 		return -1;
 	}
 
-	spin_lock_bh(&adapter->cmd_lock);
 	adapter->cur_cmd->resp_skb = skb;
 	adapter->cmd_resp = adapter->cur_cmd->cmd_code;
 	spin_unlock_bh(&adapter->cmd_lock);
-
 
 	wake_up_interruptible(&adapter->wait_for_cmd_resp);
 	queue_work(adapter->cmd_wq, &adapter->cmd_work);
@@ -495,6 +515,7 @@ static void process_scan_result_event(struct esp_wifi_device *priv,
 	u16 cap_info;
 	u32 ie_len;
 	int freq;
+	int frame_type = CFG80211_BSS_FTYPE_UNKNOWN; /* int type for older compatibilty */
 
 	if (!priv || !scan_evt) {
 		esp_err("Invalid arguments\n");
@@ -531,9 +552,15 @@ static void process_scan_result_event(struct esp_wifi_device *priv,
 	ie_buf += sizeof(struct beacon_probe_fixed_params);
 	ie_len -= sizeof(struct beacon_probe_fixed_params);
 
+	if ((scan_evt->frame_type << 4) == IEEE80211_STYPE_BEACON) {
+		frame_type = CFG80211_BSS_FTYPE_BEACON;
+	} else if ((scan_evt->frame_type << 4) == IEEE80211_STYPE_PROBE_RESP) {
+		frame_type = CFG80211_BSS_FTYPE_PRESP;
+	}
+
 	if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
 		bss = CFG80211_INFORM_BSS(priv->adapter->wiphy, chan,
-				scan_evt->bssid, timestamp,
+				frame_type, scan_evt->bssid, timestamp,
 				cap_info, beacon_interval, ie_buf, ie_len,
 				(le32_to_cpu(scan_evt->rssi) * 100), GFP_ATOMIC);
 
@@ -552,13 +579,27 @@ static void process_auth_event(struct esp_wifi_device *priv,
 		return;
 	}
 
-#if 0
-	print_hex_dump(KERN_INFO, "Auth frame: ", DUMP_PREFIX_ADDRESS, 16, 1,
-			event->frame, event->frame_len, 1);
-#endif
+	esp_hex_dump_verbose("Auth frame: ", event->frame, event->frame_len);
 
 	cfg80211_rx_mlme_mgmt(priv->ndev, event->frame, event->frame_len);
 
+}
+
+#define IEEE80211_DEAUTH_FRAME_LEN      (24 /* hdr */ + 2 /* reason */)
+static void process_deauth_event(struct esp_wifi_device *priv, struct disconnect_event *event)
+{
+	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
+	struct ieee80211_mgmt *mgmt = (void *)frame_buf;
+
+	/* build frame */
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DEAUTH);
+	mgmt->duration = 0; /* initialize only */
+	mgmt->seq_ctrl = 0; /* initialize only */
+	memcpy(mgmt->da, priv->mac_address, ETH_ALEN); /* own address */
+	memcpy(mgmt->sa, event->bssid, ETH_ALEN);
+	memcpy(mgmt->bssid, event->bssid, ETH_ALEN);
+	mgmt->u.deauth.reason_code = cpu_to_le16(event->reason);
+	cfg80211_rx_mlme_mgmt(priv->ndev, frame_buf, IEEE80211_DEAUTH_FRAME_LEN);
 }
 
 static void process_disconnect_event(struct esp_wifi_device *priv,
@@ -572,7 +613,13 @@ static void process_disconnect_event(struct esp_wifi_device *priv,
 	esp_info("Disconnect event for ssid %s [reason:%d]\n",
 			event->ssid, event->reason);
 
-	esp_mark_disconnect(priv, event->reason, true);
+	//esp_mark_disconnect(priv, event->reason, true);
+	/* Flush previous scan results from kernel */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
+	cfg80211_bss_flush(priv->adapter->wiphy);
+#endif
+	/* Send dummpy deauth to userspace */
+	process_deauth_event(priv, event);
 }
 
 static void process_assoc_event(struct esp_wifi_device *priv,
@@ -588,6 +635,7 @@ static void process_assoc_event(struct esp_wifi_device *priv,
 	esp_info("Connection status: %d\n", event->header.status);
 
 	memcpy(mac, event->bssid, MAC_ADDR_LEN);
+	priv->rssi = event->rssi;
 
 	CFG80211_RX_ASSOC_RESP(priv->ndev, priv->bss, event->frame, event->frame_len,
 			0, priv->assoc_req_ie, priv->assoc_req_ie_len);
@@ -944,6 +992,10 @@ int cmd_auth_request(struct esp_wifi_device *priv,
 	cmd->auth_data_len = req->auth_data_len;
 	memcpy(cmd->auth_data, req->auth_data, req->auth_data_len);
 
+	if (req->key_len) {
+		memcpy(cmd->key, req->key, req->key_len);
+		cmd->key_len = req->key_len;
+	}
 	esp_info("Authentication request: "MACSTR" %d %d %d %d\n",
 			MAC2STR(cmd->bssid), cmd->channel, cmd->auth_type, cmd->auth_data_len,
 			(u32) req->ie_len);
@@ -1085,11 +1137,11 @@ int cmd_add_key(struct esp_wifi_device *priv, u8 key_index, bool pairwise,
 	const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	const u8 *mac = NULL;
 
-#if 0
-	esp_info("%u key_idx: %u pairwise: %u params->key_len: %u\nparams->seq_len:%u params->mode: 0x%x\nparams->cipher: 0x%x\n",
-      __LINE__,
-      key_index, pairwise, params->key_len, params->seq_len, params->mode, params->cipher);
-#endif
+	esp_verbose("key_idx: %u pairwise: %u params->key_len: %u\n"
+                     "params->seq_len:%u params->mode: 0x%x\n"
+                     "params->cipher: 0x%x\n",
+                     key_index, pairwise, params->key_len, params->seq_len,
+                     params->mode, params->cipher);
 	if (!priv || !priv->adapter || !params ||
 	    !params->key || !params->key_len || !params->seq_len) {
 		esp_err("Invalid argument\n");
@@ -1121,10 +1173,7 @@ int cmd_add_key(struct esp_wifi_device *priv, u8 key_index, bool pairwise,
 
 	mac = pairwise ? mac_addr : bc_mac;
 	if (mac) {
-#if 0
-		print_hex_dump(KERN_INFO, "mac: ", DUMP_PREFIX_ADDRESS, 16, 1,
-				mac, MAC_ADDR_LEN, 1);
-#endif
+		esp_hex_dump_verbose("mac: ", mac, MAC_ADDR_LEN);
 	}
 
 	cmd_len = sizeof(struct cmd_key_operation);
@@ -1160,13 +1209,20 @@ int cmd_add_key(struct esp_wifi_device *priv, u8 key_index, bool pairwise,
 	}
 #endif
 
-#if 0
-	esp_err("%u algo: %u idx: %u seq_len: %u len:%u\n", __LINE__,
+       /* Supplicant swaps tx/rx Mic keys whereas esp needs it normal format */
+       if (key->algo == WIFI_WPA_ALG_TKIP) {
+               u8 buf[8];
+               memcpy(buf, &key->data[16], 8);
+               memcpy(&key->data[16], &key->data[24], 8);
+               memcpy(&key->data[24], buf, 8);
+               memset(buf, 0, 8);
+       }
+
+	esp_verbose("algo: %u idx: %u seq_len: %u len:%u\n",
 			key->algo, key->index, key->seq_len, key->len);
-	PRINT_HEXDUMP("mac", key->mac_addr, 6, ESP_LOG_INFO);
-	PRINT_HEXDUMP("seq", key->seq, key->seq_len, ESP_LOG_INFO);
-	PRINT_HEXDUMP("key_data", key->data, key->len, ESP_LOG_INFO);
-#endif
+	esp_hex_dump_verbose("mac", key->mac_addr, 6);
+	esp_hex_dump_verbose("seq", key->seq, key->seq_len);
+	esp_hex_dump_verbose("key_data", key->data, key->len);
 
 	queue_cmd_node(priv->adapter, cmd_node, ESP_CMD_DFLT_PRIO);
 	queue_work(priv->adapter->cmd_wq, &priv->adapter->cmd_work);
@@ -1357,6 +1413,36 @@ int cmd_scan_request(struct esp_wifi_device *priv, struct cfg80211_scan_request 
 	return 0;
 }
 
+int cmd_init_raw_tp_task_timer(struct esp_wifi_device *priv)
+{
+	u16 cmd_len;
+	struct command_node *cmd_node = NULL;
+
+	if (!priv || !priv->adapter) {
+		esp_err("Invalid argument\n");
+		return -EINVAL;
+	}
+
+	cmd_len = sizeof(struct command_header);
+
+	if (raw_tp_mode == ESP_TEST_RAW_TP_ESP_TO_HOST) {
+		cmd_node = prepare_command_request(priv->adapter, CMD_RAW_TP_ESP_TO_HOST, cmd_len);
+	} else if (raw_tp_mode == ESP_TEST_RAW_TP_HOST_TO_ESP) {
+		cmd_node = prepare_command_request(priv->adapter, CMD_RAW_TP_HOST_TO_ESP, cmd_len);
+	}
+
+	if (!cmd_node) {
+		esp_err("Failed to get command node\n");
+		return -ENOMEM;
+	}
+
+	queue_cmd_node(priv->adapter, cmd_node, ESP_CMD_DFLT_PRIO);
+	queue_work(priv->adapter->cmd_wq, &priv->adapter->cmd_work);
+
+	RET_ON_FAIL(wait_and_decode_cmd_resp(priv, cmd_node));
+
+	return 0;
+}
 
 int cmd_get_mac(struct esp_wifi_device *priv)
 {
@@ -1419,32 +1505,12 @@ int cmd_set_mac(struct esp_wifi_device *priv, uint8_t *mac_addr)
 
 int esp_commands_teardown(struct esp_adapter *adapter)
 {
-#define MAX_DEINIT_RETRY 5
-	uint8_t iface_idx = 0;
-	struct esp_wifi_device *priv = NULL;
-
 	if (!adapter) {
 		return -EINVAL;
 	}
 
 	set_bit(ESP_CLEANUP_IN_PROGRESS, &adapter->state_flags);
-
-	if (!test_bit(ESP_CMD_INIT_DONE, &adapter->state_flags))
-		return 0;
-
-
-	for (iface_idx = 0; iface_idx < ESP_MAX_INTERFACE; iface_idx++) {
-
-		priv = adapter->priv[iface_idx];
-
-		if (!priv)
-			continue;
-
-		esp_mark_scan_done_and_disconnect(priv, false);
-
-		esp_port_close(priv);
-	}
-
+	clear_bit(ESP_CMD_INIT_DONE, &adapter->state_flags);
 	destroy_cmd_wq(adapter);
 	free_esp_cmd_pool(adapter);
 
@@ -1473,6 +1539,43 @@ int esp_commands_setup(struct esp_adapter *adapter)
 	RET_ON_FAIL(alloc_esp_cmd_pool(adapter));
 
 	set_bit(ESP_CMD_INIT_DONE, &adapter->state_flags);
+	return 0;
+}
+
+int cmd_set_wow_config(struct esp_wifi_device *priv, struct cfg80211_wowlan *wowlan)
+{
+	u16 cmd_len;
+	struct command_node *cmd_node = NULL;
+	struct cmd_wow_config *config;;
+
+	if (!priv || !priv->adapter) {
+		esp_err("Invalid argument\n");
+		return -EINVAL;
+	}
+
+	cmd_len = sizeof(struct cmd_wow_config);
+
+	cmd_node = prepare_command_request(priv->adapter, CMD_SET_WOW_CONFIG, cmd_len);
+
+	if (!cmd_node) {
+		esp_err("Failed to get command node\n");
+		return -ENOMEM;
+	}
+
+	config = (struct cmd_wow_config *) (cmd_node->cmd_skb->data +
+				sizeof(struct esp_payload_header));
+
+	config->any = wowlan->any;
+	config->disconnect = wowlan->disconnect;
+	config->magic_pkt = wowlan->magic_pkt;
+	config->four_way_handshake = wowlan->four_way_handshake;
+	config->eap_identity_req = wowlan->eap_identity_req;
+
+	queue_cmd_node(priv->adapter, cmd_node, ESP_CMD_DFLT_PRIO);
+	queue_work(priv->adapter->cmd_wq, &priv->adapter->cmd_work);
+
+	RET_ON_FAIL(wait_and_decode_cmd_resp(priv, cmd_node));
+
 	return 0;
 }
 
@@ -1585,7 +1688,7 @@ int cmd_set_reg_domain(struct esp_wifi_device *priv)
 
 	cmd = (struct cmd_reg_domain *) (cmd_node->cmd_skb->data + sizeof(struct esp_payload_header));
 
-	strlcpy(cmd->country_code, priv->country_code, MAX_COUNTRY_LEN);
+	strscpy(cmd->country_code, priv->country_code, MAX_COUNTRY_LEN);
 
 	queue_cmd_node(priv->adapter, cmd_node, ESP_CMD_DFLT_PRIO);
 	queue_work(priv->adapter->cmd_wq, &priv->adapter->cmd_work);

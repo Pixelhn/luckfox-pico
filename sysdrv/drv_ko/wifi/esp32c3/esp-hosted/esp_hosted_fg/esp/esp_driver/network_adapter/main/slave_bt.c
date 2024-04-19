@@ -324,8 +324,8 @@ static void init_uart_c3_s3(void)
     };
     ESP_ERROR_CHECK(gdma_new_channel(&rx_channel_config, &s_rx_channel));
 
-    gdma_connect(s_tx_channel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_UART, 0));
-    gdma_connect(s_rx_channel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_UART, 0));
+    gdma_connect(s_tx_channel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_UHCI, 0));
+    gdma_connect(s_rx_channel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_UHCI, 0));
 
     gdma_strategy_config_t strategy_config = {
         .auto_update_desc = false,
@@ -428,6 +428,11 @@ void esp_vhci_host_send_packet(uint8_t *data, uint16_t len)
     if (*(data) == DATA_TYPE_COMMAND) {
         struct ble_hci_cmd *cmd = NULL;
         cmd = (struct ble_hci_cmd *) ble_hci_trans_buf_alloc(BLE_HCI_TRANS_BUF_CMD);
+	if (!cmd) {
+		ESP_LOGE(BT_TAG, "Failed to allocate memory for HCI transport buffer");
+		return;
+	}
+
         memcpy((uint8_t *)cmd, data + 1, len - 1);
         ble_hci_trans_hs_cmd_tx((uint8_t *)cmd);
     }

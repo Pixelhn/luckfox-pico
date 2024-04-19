@@ -78,31 +78,17 @@
 
 #define ESP_ADDRESS_MASK              0x3FF
 
-#if defined(CONFIG_TARGET_ESP32C6)
-  #define ESP_VENDOR_ID               0x0092
-  #define ESP_DEVICE_ID_1             0x6666
-  #define ESP_DEVICE_ID_2             0x7777
+#define ESP_VENDOR_ID_1             0x6666
+#define ESP_DEVICE_ID_ESP32_1       0x2222
+#define ESP_DEVICE_ID_ESP32_2       0x3333
 
-#elif defined(CONFIG_TARGET_ESP32)
-  #define ESP_VENDOR_ID               0x6666
-  #define ESP_DEVICE_ID_1             0x2222
-  #define ESP_DEVICE_ID_2             0x3333
-
-#else
-#error "SDIO not supported for selected ESP device"
-#endif
-
-
-enum context_state {
-	ESP_CONTEXT_DISABLED = 0,
-	ESP_CONTEXT_INIT,
-	ESP_CONTEXT_READY
-};
+#define ESP_VENDOR_ID_2             0x0092
+#define ESP_DEVICE_ID_ESP32C6_1     0x6666
+#define ESP_DEVICE_ID_ESP32C6_2     0x7777
 
 struct esp_sdio_context {
 	struct esp_adapter     *adapter;
 	struct sdio_func       *func;
-	enum context_state     state;
 	struct sk_buff_head    tx_q[MAX_PRIORITY_QUEUES];
 	u32                    rx_byte_count;
 	u32                    tx_buffer_count;

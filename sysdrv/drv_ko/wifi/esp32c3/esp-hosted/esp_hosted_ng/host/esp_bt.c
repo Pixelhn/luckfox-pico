@@ -75,7 +75,7 @@ static ESP_BT_SEND_FRAME_PROTOTYPE()
 		esp_err("Invalid args");
 		return -EINVAL;
 	}
-	//print_hex_dump(KERN_INFO, "bt_tx: ", DUMP_PREFIX_ADDRESS, 16, 1, skb->data, len, 1  );
+	esp_hex_dump_verbose("bt_tx: ", skb->data, len);
 
 	/* Create space for payload header */
 	pad_len = sizeof(struct esp_payload_header);
@@ -241,6 +241,8 @@ int esp_init_bt(struct esp_adapter *adapter)
 #endif
 
 	hdev->dev_type = HCI_PRIMARY;
+
+	SET_HCIDEV_DEV(hdev, adapter->dev);
 
 	ret = hci_register_dev(hdev);
 	if (ret < 0) {

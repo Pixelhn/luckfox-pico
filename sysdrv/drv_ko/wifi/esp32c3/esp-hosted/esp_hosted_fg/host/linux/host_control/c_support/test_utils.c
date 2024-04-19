@@ -437,13 +437,15 @@ int ctrl_app_resp_callback(ctrl_cmd_t * app_resp)
 		goto fail_resp;
 	}
 
-	if ((app_resp->msg_id <= CTRL_RESP_BASE) || (app_resp->msg_id >= CTRL_RESP_MAX)) {
-		printf("Response Msg ID[%u] is not correct\n",app_resp->msg_id);
+	/* a timeout doesn't have a response id
+	 * process failed responses before checking for incorrect response id */
+	if (app_resp->resp_event_status != SUCCESS) {
+		process_failed_responses(app_resp);
 		goto fail_resp;
 	}
 
-	if (app_resp->resp_event_status != SUCCESS) {
-		process_failed_responses(app_resp);
+	if ((app_resp->msg_id <= CTRL_RESP_BASE) || (app_resp->msg_id >= CTRL_RESP_MAX)) {
+		printf("Response Msg ID[%u] is not correct\n",app_resp->msg_id);
 		goto fail_resp;
 	}
 
@@ -461,7 +463,7 @@ int ctrl_app_resp_callback(ctrl_cmd_t * app_resp)
 				case WIFI_MODE_STA:     printf("station\n");        break;
 				case WIFI_MODE_AP:      printf("softap\n");         break;
 				case WIFI_MODE_APSTA:   printf("station+softap\n"); break;
-				case WIFI_MODE_NONE:    printf("none");             break;
+				case WIFI_MODE_NONE:    printf("none\n");           break;
 				default:                printf("unknown\n");        break;
 			}
 			break;
@@ -714,7 +716,7 @@ int test_station_mode_connect(void)
 	req.u.wifi_ap_config.is_wpa3_supported = STATION_MODE_IS_WPA3_SUPPORTED;
 	req.u.wifi_ap_config.listen_interval = STATION_MODE_LISTEN_INTERVAL;
 
-	/* register callback for handling reply asynch-ly */
+	/* register callback for handling asynch reply */
 	req.ctrl_resp_cb = ctrl_app_resp_callback;
 
 	wifi_connect_ap(req);
@@ -973,18 +975,25 @@ int test_ota(char* image_path)
 			if (ret) {
 				printf("OTA procedure failed!!\n");
 				test_ota_end();
-				return FAILURE;
+				goto fail;
 			}
 		}
+		fclose(f);
+		f = NULL;
 		ret = test_ota_end();
 		if (ret) {
-			return FAILURE;
+			goto fail;
 		}
 	} else {
 		return FAILURE;
 	}
 	printf("ESP32 will restart after 5 sec\n");
 	return SUCCESS;
+fail:
+	if (f) {
+		fclose(f);
+	}
+	return FAILURE;
 }
 
 int test_wifi_set_max_tx_power(int in_power)
@@ -1033,4 +1042,18 @@ int test_disable_heartbeat(void)
 	resp = config_heartbeat(req);
 
 	return ctrl_app_resp_callback(resp);
+}
+
+int test_disable_heartbeat_async(void)
+{
+	/* implemented asynchronous */
+	ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
+	req.u.e_heartbeat.enable = NO;
+
+	/* register callback for handling asynch reply */
+	req.ctrl_resp_cb = ctrl_app_resp_callback;
+
+	config_heartbeat(req);
+
+	return SUCCESS;
 }

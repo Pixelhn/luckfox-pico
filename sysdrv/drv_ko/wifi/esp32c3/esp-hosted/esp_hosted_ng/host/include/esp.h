@@ -40,6 +40,8 @@ enum chipset_type_e {
 	ESP_FIRMWARE_CHIP_ESP32S2 = 0x2,
 	ESP_FIRMWARE_CHIP_ESP32C3 = 0x5,
 	ESP_FIRMWARE_CHIP_ESP32S3 = 0x9,
+	ESP_FIRMWARE_CHIP_ESP32C2 = 0x0C,
+	ESP_FIRMWARE_CHIP_ESP32C6 = 0x0D,
 };
 
 #define ESP_PAYLOAD_HEADER      8
@@ -58,6 +60,7 @@ enum adapter_flags_e {
 	ESP_CLEANUP_IN_PROGRESS,    /* Driver unloading or ESP reseted */
 	ESP_CMD_INIT_DONE,          /* Cmd component is initialized with esp_commands_setup() */
 	ESP_DRIVER_ACTIVE,          /* kernel module __exit is not yet invoked */
+	ESP_INIT_DONE,              /* Driver init done */
 };
 
 enum priv_flags_e {
@@ -69,6 +72,7 @@ struct command_node {
 	uint8_t cmd_code;
 	struct sk_buff *cmd_skb;
 	struct sk_buff *resp_skb;
+	bool in_cmd_queue;
 };
 
 struct esp_adapter {
@@ -104,7 +108,6 @@ struct esp_adapter {
 	struct command_node     *cur_cmd;
 	spinlock_t              cmd_lock;
 
-	struct workqueue_struct *mac_filter_wq;
 	struct work_struct      mac_flter_work;
 
 	struct workqueue_struct *cmd_wq;
@@ -115,6 +118,7 @@ struct esp_adapter {
 	struct work_struct      events_work;
 
 	unsigned long           state_flags;
+	int                     chipset;
 };
 
 struct esp_device {
@@ -158,6 +162,7 @@ struct esp_wifi_device {
 	struct notifier_block   nb;
 	uint8_t                 tx_pwr_type;
 	uint8_t                 tx_pwr;
+	uint32_t                rssi;
 };
 
 

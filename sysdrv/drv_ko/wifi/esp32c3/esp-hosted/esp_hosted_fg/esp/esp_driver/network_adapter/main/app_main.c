@@ -70,7 +70,7 @@ static const char TAG_TX_S[] = "CONTROL S -> H";
   #ifdef CONFIG_IDF_TARGET_ESP32S2
     #define TO_HOST_QUEUE_SIZE           5
   #else
-    #define TO_HOST_QUEUE_SIZE           20
+    #define TO_HOST_QUEUE_SIZE           40
   #endif
 #else
   #define TO_HOST_QUEUE_SIZE             100
@@ -212,20 +212,12 @@ void esp_update_ap_mac(void)
 esp_err_t wlan_ap_rx_callback(void *buffer, uint16_t len, void *eb)
 {
 	interface_buffer_handle_t buf_handle = {0};
-	uint8_t * ap_buf = buffer;
 
 	if (!buffer || !eb || !datapath || ota_ongoing) {
 		if (eb) {
 			esp_wifi_internal_free_rx_buffer(eb);
 		}
 		return ESP_OK;
-	}
-
-	/* Check destination address against self address */
-	if (memcmp(ap_buf, ap_mac, MAC_LEN)) {
-		/* Check for multicast or broadcast address */
-		if (!(ap_buf[0] & 1))
-			goto DONE;
 	}
 
 	buf_handle.if_type = ESP_AP_IF;
@@ -459,11 +451,16 @@ static ssize_t serial_read_data(uint8_t *data, ssize_t len)
 
 int send_to_host_queue(interface_buffer_handle_t *buf_handle, uint8_t queue_type)
 {
+
+#if 0
+	process_tx_pkt(buf_handle);
+#else
 	int ret = xQueueSend(to_host_queue[queue_type], buf_handle, portMAX_DELAY);
 	if (ret != pdTRUE) {
 		ESP_LOGE(TAG, "Failed to send buffer into queue[%u]\n",queue_type);
 		return ESP_FAIL;
 	}
+
 	if (queue_type == PRIO_Q_SERIAL)
 		ret = xQueueSendToFront(meta_to_host_queue, &queue_type, portMAX_DELAY);
 	else
@@ -473,6 +470,7 @@ int send_to_host_queue(interface_buffer_handle_t *buf_handle, uint8_t queue_type
 		ESP_LOGE(TAG, "Failed to send buffer into meta queue[%u]\n",queue_type);
 		return ESP_FAIL;
 	}
+#endif
 
 	return ESP_OK;
 }

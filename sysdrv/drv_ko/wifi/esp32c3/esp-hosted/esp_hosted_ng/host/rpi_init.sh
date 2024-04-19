@@ -17,7 +17,7 @@
 
 RESETPIN=""
 BT_UART_INIT="0"
-TEST_RAW_TP="0"
+RAW_TP_MODE="0"
 IF_TYPE="sdio"
 MODULE_NAME="esp32_${IF_TYPE}.ko"
 RPI_RESETPIN=6
@@ -41,25 +41,32 @@ wlan_init()
         fi
     fi
 
-    if [ "$TEST_RAW_TP" = "0" ] ; then
-        VAL_CONFIG_TEST_RAW_TP=n
-    else
-        VAL_CONFIG_TEST_RAW_TP=y
+    if [ "$ESP_SLAVE" != "" ] ; then
+        CUSTOM_OPTS=${CUSTOM_OPTS}" ESP_SLAVE=\"$ESP_SLAVE"\"
+    fi
+    if [ "$CUSTOM_OPTS" != "" ] ; then
+        echo "Adding $CUSTOM_OPTS"
     fi
 
     # For Linux other than Raspberry Pi, Please point
     # CROSS_COMPILE -> <Toolchain-Path>/bin/arm-linux-gnueabihf-
     # KERNEL        -> Place where kernel is checked out and built
     # ARCH          -> Architecture
-    make -j8 target=$IF_TYPE CROSS_COMPILE=/usr/bin/arm-linux-gnueabihf- KERNEL="/lib/modules/$(uname -r)/build" \
-    CONFIG_TEST_RAW_TP="$VAL_CONFIG_TEST_RAW_TP" ARCH=arm
+    # make -j8 target=$IF_TYPE CROSS_COMPILE=/usr/bin/arm-linux-gnueabihf- KERNEL="/lib/modules/$(uname -r)/build" \
+    # ARCH=arm64
+
+    # Populate your arch if not populated correctly.
+    arch_num_bits=$(getconf LONG_BIT)
+    if [ "$arch_num_bits" = "32" ] ; then arch_found="arm"; else arch_found="arm64"; fi
+
+    make -j8 target=$IF_TYPE KERNEL="/lib/modules/$(uname -r)/build" ARCH=$arch_found $CUSTOM_OPTS \
 
     if [ "$RESETPIN" = "" ] ; then
         #By Default, BCM6 is GPIO on host. use resetpin=6
-        sudo insmod $MODULE_NAME resetpin=$RPI_RESETPIN
+        sudo insmod $MODULE_NAME resetpin=$RPI_RESETPIN raw_tp_mode=$RAW_TP_MODE
     else
         #Use resetpin value from argument
-        sudo insmod $MODULE_NAME $RESETPIN
+        sudo insmod $MODULE_NAME $RESETPIN raw_tp_mode=$RAW_TP_MODE
     fi
 
     if [ `lsmod | grep esp32 | wc -l` != "0" ]; then
@@ -71,12 +78,14 @@ wlan_init()
     fi
 }
 
-bt_uart_init()
+bt_init()
 {
-    sudo raspi-gpio set 15 a0 pu
-    sudo raspi-gpio set 14 a0 pu
-    sudo raspi-gpio set 16 a3 pu
-    sudo raspi-gpio set 17 a3 pu
+    sudo pinctrl set 15 a0 pu
+    sudo pinctrl set 14 a0 pu
+    if [ "$BT_INIT_SET" = "4" ] ; then
+        sudo pinctrl set 16 a3 pu
+        sudo pinctrl set 17 a3 pu
+    fi
 }
 
 usage()
@@ -86,7 +95,8 @@ usage()
     echo "\nArguments are optional and are as below"
     echo "  spi:    sets ESP32<->RPi communication over SPI"
     echo "  sdio:   sets ESP32<->RPi communication over SDIO"
-    echo "  btuart: Set GPIO pins on RPi for HCI UART operations"
+    echo "  btuart: Set GPIO pins on RPi for HCI UART operations with TX, RX, CTS, RTS (defaulted to option btuart_4pins)"
+    echo "  btuart_2pins: Set GPIO pins on RPi for HCI UART operations with only TX & RX pins configured (only for ESP32-C2/C6)"
     echo "  resetpin=6:     Set GPIO pins on RPi connected to EN pin of ESP32, used to reset ESP32 (default:6 for BCM6)"
     echo "\nExample:"
     echo "  - Prepare RPi for WLAN operation on SDIO. sdio is default if no interface mentioned"
@@ -119,13 +129,21 @@ parse_arguments()
                 echo "Recvd Option: $1"
                 RESETPIN=$1
                 ;;
-            btuart)
-                echo "Recvd Option: $1"
-                BT_UART_INIT="1"
+            btuart | btuart_4pins | btuart_4pin)
+                echo "Configure Host BT UART with 4 pins, RX, TX, CTS, RTS"
+                BT_INIT_SET="4"
                 ;;
-            rawtp)
-                echo "Test RAW TP"
-                TEST_RAW_TP="1"
+            btuart_2pins | btuart_2pin)
+                echo "Configure Host BT UART with 2 pins, RX & TX"
+                BT_INIT_SET="2"
+                ;;
+            rawtp_host_to_esp)
+                echo "Test RAW TP ESP to HOST"
+                RAW_TP_MODE="1"
+                ;;
+            rawtp_esp_to_host)
+                echo "Test RAW TP ESP to HOST"
+                RAW_TP_MODE="2"
                 ;;
             *)
                 echo "$1 : unknown option"
@@ -168,8 +186,8 @@ if [ `lsmod | grep bluetooth | wc -l` != "0" ]; then
     wlan_init
 fi
 
-if [ "$BT_UART_INIT" = "1" ] ; then
-    bt_uart_init
+if [ "$BT_INIT_SET" != "0" ] ; then
+    bt_init
 fi
 
 

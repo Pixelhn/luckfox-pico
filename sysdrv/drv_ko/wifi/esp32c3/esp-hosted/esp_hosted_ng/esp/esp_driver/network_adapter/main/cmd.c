@@ -25,9 +25,11 @@
 #include "endian.h"
 #include "esp_private/wifi.h"
 #include "esp_wpa.h"
+#include "app_main.h"
 #include "esp_wifi.h"
 #include "esp_wifi_driver.h"
 #include "esp_event.h"
+#include "esp_mac.h"
 
 #define TAG "FW_CMD"
 
@@ -64,11 +66,16 @@ static esp_event_handler_instance_t instance_any_id;
 static uint8_t *ap_bssid;
 extern uint32_t ip_address;
 extern struct macfilter_list mac_list;
+extern uint8_t sta_mac[MAC_ADDR_LEN];
+extern uint8_t ap_mac[MAC_ADDR_LEN];
 
 esp_err_t esp_wifi_register_mgmt_frame_internal(uint32_t type, uint32_t subtype);
 int esp_wifi_register_wpa_cb_internal(struct wpa_funcs *cb);
 int esp_wifi_unregister_wpa_cb_internal(void);
 extern esp_err_t wlan_sta_rx_callback(void *buffer, uint16_t len, void *eb);
+extern volatile uint8_t power_save_on;
+extern void wake_host();
+extern struct wow_config wow;
 
 extern int wpa_parse_wpa_ie(const u8 *wpa_ie, size_t wpa_ie_len, wifi_wpa_ie_t *data);
 static inline void WPA_PUT_LE16(u8 *a, u16 val)
@@ -137,7 +144,7 @@ int station_rx_eapol(uint8_t *src_addr, uint8_t *buf, uint32_t len)
 	u8 own_mac[MAC_ADDR_LEN] = {0};
 
 	if (!src_addr || !buf || !len) {
-		ESP_LOGI(TAG, "eapol err - src_addr: %p buf: %p len: %u\n",
+		ESP_LOGI(TAG, "eapol err - src_addr: %p buf: %p len: %ld\n",
 				src_addr, buf, len);
 		//TODO : free buf using esp_wifi_internal_free_rx_buffer?
 		return ESP_FAIL;
@@ -153,6 +160,15 @@ int station_rx_eapol(uint8_t *src_addr, uint8_t *buf, uint32_t len)
 		ESP_LOGI(TAG, "Failed to get own sta MAC addr\n");
 		return ESP_FAIL;
 	}
+
+#if CONFIG_ESP_SDIO_HOST_INTERFACE
+	if (power_save_on && wow.four_way_handshake) {
+		ESP_LOGI(TAG, "Wakeup on FourWayHandshake");
+		wake_host();
+		buf_handle.flag = 0xFF;
+		sleep(1);
+	}
+#endif
 
 	/* Check destination address against self address */
 	if (memcmp(ap_bssid, src_addr, MAC_ADDR_LEN)) {
@@ -227,6 +243,11 @@ static int rx_sae_msg(uint8_t *data, size_t len, uint32_t sae_msg_type, uint16_t
 	return ESP_OK;
 }
 
+static void sta_connected_cb(uint8_t *bssid)
+{
+	ESP_LOGI(TAG, "STA connected with:" MACSTR "\n", MAC2STR(bssid));
+}
+
 void disconnected_cb(uint8_t reason_code)
 {
 	ESP_LOGI(TAG, "STA disconnected [%u]\n", reason_code);
@@ -297,7 +318,7 @@ DONE:
 	return;
 }
 
-void handle_sta_disconnected_event(wifi_event_sta_disconnected_t *disconnected)
+void handle_sta_disconnected_event(wifi_event_sta_disconnected_t *disconnected, bool wakeup_flag)
 {
 	interface_buffer_handle_t buf_handle = {0};
 	struct disconnect_event *event;
@@ -322,6 +343,9 @@ void handle_sta_disconnected_event(wifi_event_sta_disconnected_t *disconnected)
 	memcpy(event->bssid, disconnected->bssid, MAC_ADDR_LEN);
 	event->reason = disconnected->reason;
 
+	if (wakeup_flag) {
+		buf_handle.flag = 0xFF;
+	}
 	ret = send_command_event(&buf_handle);
 	if (ret != pdTRUE) {
 		ESP_LOGE(TAG, "Slave -> Host: Failed to send disconnect event\n");
@@ -414,9 +438,10 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 	int32_t event_id, void* event_data)
 {
 	esp_err_t result;
+	bool wakeup_flag = false;
 
 	if (event_base != WIFI_EVENT) {
-		ESP_LOGI(TAG, "Received unregistered event %s[%d]\n", event_base, event_id);
+		ESP_LOGI(TAG, "Received unregistered event %s[%ld]\n", event_base, event_id);
 		return;
 	}
 
@@ -449,7 +474,16 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 			ESP_LOGE(TAG, "%s:%u NULL data", __func__, __LINE__);
 			return;
 		}
-		handle_sta_disconnected_event((wifi_event_sta_disconnected_t*) event_data);
+#if CONFIG_ESP_SDIO_HOST_INTERFACE
+		if (power_save_on && wow.disconnect) {
+		/* Wake-up host always on disconnect */
+			ESP_LOGI(TAG, "Wakeup on disconnect");
+			wake_host();
+			wakeup_flag = true;
+			sleep(1);
+		}
+#endif
+		handle_sta_disconnected_event((wifi_event_sta_disconnected_t*) event_data, wakeup_flag);
 		station_connected = 0;
 		/*esp_wifi_internal_reg_rxcb(ESP_IF_WIFI_STA, NULL);*/
 		break;
@@ -459,7 +493,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 		break;
 
 	default:
-		ESP_LOGI(TAG, "Unregistered event: %d\n", event_id);
+		ESP_LOGI(TAG, "Unregistered event: %ld\n", event_id);
 	}
 }
 
@@ -617,6 +651,7 @@ static int handle_wpa_sta_rx_mgmt(uint8_t type, uint8_t *frame, size_t len, uint
 
 	case WLAN_FC_STYPE_BEACON:
 		/*ESP_LOGV(TAG, "%s:%u beacon frames ignored\n", __func__, __LINE__);*/
+		sta_rx_probe(type, frame, len, sender, rssi, channel, current_tsf);
 		break;
 
 	case WLAN_FC_STYPE_PROBE_RESP:
@@ -653,7 +688,7 @@ static int handle_wpa_sta_rx_mgmt(uint8_t type, uint8_t *frame, size_t len, uint
 	return ESP_OK;
 }
 
-
+extern char * wpa_config_parse_string(const char *value, size_t *len);
 esp_err_t initialise_wifi(void)
 {
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -673,6 +708,7 @@ esp_err_t initialise_wifi(void)
 	wpa_cb.wpa_sta_init = sta_init;
 	wpa_cb.wpa_sta_deinit = sta_deinit;
 	wpa_cb.wpa_sta_connect = sta_connection;
+	wpa_cb.wpa_sta_connected_cb = sta_connected_cb;
 	wpa_cb.wpa_sta_disconnected_cb = disconnected_cb;
 	wpa_cb.wpa_sta_rx_eapol = station_rx_eapol;
 	wpa_cb.wpa_sta_in_4way_handshake = in_4way;
@@ -681,6 +717,7 @@ esp_err_t initialise_wifi(void)
 	wpa_cb.wpa3_build_sae_msg = build_sae_msg;
 	wpa_cb.wpa3_parse_sae_msg = rx_sae_msg;
 	wpa_cb.wpa_config_done = config_done;
+	wpa_cb.wpa_config_parse_string  = wpa_config_parse_string;
 
 	esp_wifi_register_wpa_cb_internal(&wpa_cb);
 
@@ -709,6 +746,7 @@ int process_start_scan(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 	interface_buffer_handle_t buf_handle = {0};
 	uint8_t cmd_status = CMD_RESPONSE_SUCCESS;
 	struct scan_request *scan_req;
+	bool config_present = false;
 
 	/* Register to receive probe response and beacon frames */
 	type = (1 << WLAN_FC_STYPE_BEACON) | (1 << WLAN_FC_STYPE_PROBE_RESP) |
@@ -723,15 +761,20 @@ int process_start_scan(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 
 		memcpy(params.ssid, scan_req->ssid, sizeof(scan_req->ssid));
 		params.scan_type = 0;
+		config_present = true;
 	}
 
 	if (scan_req->channel) {
 		params.channel = scan_req->channel;
+		config_present = true;
 	}
 
 	if (sta_init_flag) {
 		/* Trigger scan */
-		ret = esp_wifi_scan_start(&params, false);
+		if (config_present)
+		    ret = esp_wifi_scan_start(&params, false);
+		else
+		    ret = esp_wifi_scan_start(NULL, false);
 
 		if (ret) {
 			ESP_LOGI(TAG, "Scan failed ret=[0x%x]\n",ret);
@@ -925,6 +968,61 @@ DONE:
 	return ret;
 }
 
+int process_wow_set(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
+{
+	interface_buffer_handle_t buf_handle = {0};
+	esp_err_t ret = ESP_OK;
+	struct cmd_wow_config *cmd;
+
+	cmd = (struct cmd_wow_config *)payload;
+
+	wow.any = cmd->any;
+	wow.disconnect = cmd->disconnect;
+	wow.magic_pkt = cmd->magic_pkt;
+	wow.four_way_handshake = cmd->four_way_handshake;
+	wow.eap_identity_req = cmd->eap_identity_req;
+
+	if (cmd->any) {
+		wow.disconnect = 1;
+		wow.magic_pkt = 1;
+		wow.four_way_handshake = 1;
+		wow.eap_identity_req = 1;
+	}
+
+	buf_handle.if_type = if_type;
+	buf_handle.if_num = 0;
+	buf_handle.payload_len = sizeof(struct cmd_wow_config);
+	buf_handle.pkt_type = PACKET_TYPE_COMMAND_RESPONSE;
+
+	buf_handle.payload = heap_caps_malloc(buf_handle.payload_len, MALLOC_CAP_DMA);
+	assert(buf_handle.payload);
+	memset(buf_handle.payload, 0, buf_handle.payload_len);
+
+	cmd = (struct cmd_wow_config *)(buf_handle.payload);
+	cmd->header.cmd_code = CMD_SET_WOW_CONFIG;
+	cmd->header.len = 0;
+	cmd->header.cmd_status = CMD_RESPONSE_SUCCESS;
+
+	buf_handle.priv_buffer_handle = buf_handle.payload;
+	buf_handle.free_buf_handle = free;
+
+	ret = send_command_response(&buf_handle);
+	if (ret != pdTRUE) {
+		ESP_LOGE(TAG, "Slave -> Host: Failed to send command response\n");
+		goto DONE;
+	}
+
+	return ESP_OK;
+
+DONE:
+	if (buf_handle.payload)
+		free(buf_handle.payload);
+
+	return ret;
+}
+
+
+
 int process_reg_set(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 {
 	interface_buffer_handle_t buf_handle = {0};
@@ -945,7 +1043,7 @@ int process_reg_set(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 
 	cmd = (struct cmd_reg_domain *)(buf_handle.payload);
 	esp_wifi_get_country_code(cmd->country_code);
-	cmd->header.cmd_code = cmd;
+	cmd->header.cmd_code = CMD_SET_REG_DOMAIN;
 	cmd->header.len = 0;
 	cmd->header.cmd_status = CMD_RESPONSE_SUCCESS;
 
@@ -984,7 +1082,7 @@ int process_reg_get(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 
 	cmd = (struct cmd_reg_domain *)(buf_handle.payload);
 	esp_wifi_get_country_code(cmd->country_code);
-	cmd->header.cmd_code = cmd;
+	cmd->header.cmd_code = CMD_GET_REG_DOMAIN;
 	cmd->header.len = 0;
 	cmd->header.cmd_status = CMD_RESPONSE_SUCCESS;
 
@@ -1084,8 +1182,8 @@ int process_auth_request(uint8_t if_type, uint8_t *payload, uint16_t payload_len
 		msg_type = *pos;
 
 		/* Set Auth IEs */
-		esp_wifi_unset_appie_internal(WIFI_APPIE_AUTH);
-		esp_wifi_set_appie_internal(WIFI_APPIE_AUTH, cmd_auth->auth_data + 4,
+		esp_wifi_unset_appie_internal(WIFI_APPIE_RAM_STA_AUTH);
+		esp_wifi_set_appie_internal(WIFI_APPIE_RAM_STA_AUTH, cmd_auth->auth_data + 4,
 				cmd_auth->auth_data_len - 4, 0);
 	}
 
@@ -1098,12 +1196,12 @@ int process_auth_request(uint8_t if_type, uint8_t *payload, uint16_t payload_len
 	} else {
 		wifi_scan_config_t params = {0};
 
-		if (cmd_auth->bssid) {
+		if (memcmp(cmd_auth->bssid, (uint8_t[MAC_ADDR_LEN]) {0}, MAC_ADDR_LEN) != 0) {
 			params.bssid = malloc(sizeof(cmd_auth->bssid));
 			assert(params.bssid);
 
 			memcpy(params.bssid, cmd_auth->bssid, sizeof(cmd_auth->bssid));
-			params.scan_type = 1;
+			params.scan_type = WIFI_SCAN_TYPE_ACTIVE;
 		}
 
 		if (cmd_auth->channel) {
@@ -1152,9 +1250,17 @@ int process_auth_request(uint8_t if_type, uint8_t *payload, uint16_t payload_len
 		ESP_LOGI(TAG, "Connecting to %s, channel: %u [%d]", wifi_config.sta.ssid, cmd_auth->channel, auth_type);
 
 
-		if (auth_type)
+		if (auth_type == WIFI_AUTH_WEP) {
+			if (!cmd_auth->key_len)
+				ESP_LOGE(TAG, "WEP password not present");
+			memcpy(wifi_config.sta.password, cmd_auth->key, 27);
+			wifi_config.sta.threshold.authmode = WIFI_AUTH_WEP;
+		} else if (auth_type != WIFI_AUTH_OPEN) {
 			memcpy(wifi_config.sta.password, DUMMY_PASSPHRASE, sizeof(DUMMY_PASSPHRASE));
+			wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA_PSK;;
+		}
 
+		ESP_LOGD(TAG, "AUTH type=%d password used=%s\n", auth_type, wifi_config.sta.password);
 		memcpy(wifi_config.sta.bssid, cmd_auth->bssid, MAC_ADDR_LEN);
 
 		wifi_config.sta.channel = cmd_auth->channel;
@@ -1293,7 +1399,7 @@ int process_sta_connect(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 	wifi_config.sta.channel = cmd_connect->channel;
 	ESP_LOGI(TAG, "%s, channel: %u", cmd_connect->ssid, cmd_connect->channel);
 
-	if (cmd_connect->assoc_ie && cmd_connect->assoc_ie_len) {
+	if (cmd_connect->assoc_ie_len) {
 		esp_wifi_unset_appie_internal(WIFI_APPIE_ASSOC_REQ);
 		esp_wifi_set_appie_internal(WIFI_APPIE_ASSOC_REQ, cmd_connect->assoc_ie,
 			cmd_connect->assoc_ie_len, 0);
@@ -1492,9 +1598,10 @@ int process_get_mac(uint8_t if_type)
 	uint8_t mac[MAC_ADDR_LEN];
 
 	if (if_type == ESP_STA_IF) {
-		wifi_if_type |= WIFI_IF_STA;
+		wifi_if_type = WIFI_IF_STA;
+
 	} else {
-		wifi_if_type |= WIFI_IF_AP;
+		wifi_if_type = WIFI_IF_AP;
 	}
 
 	ret = esp_wifi_get_mac(wifi_if_type, mac);
@@ -1503,6 +1610,12 @@ int process_get_mac(uint8_t if_type)
 		ESP_LOGE(TAG, "Failed to get mac address\n");
 		cmd_status = CMD_RESPONSE_FAIL;
 	}
+	if (if_type == ESP_STA_IF) {
+		memcpy(sta_mac, mac, MAC_ADDR_LEN);
+	} else {
+		memcpy(ap_mac, mac, MAC_ADDR_LEN);
+	}
+
 
 	/*ESP_LOG_BUFFER_HEXDUMP(TAG, mac, MAC_ADDR_LEN, ESP_LOG_INFO);*/
 
@@ -1557,8 +1670,10 @@ int process_set_mac(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 
 	if (if_type == ESP_STA_IF) {
 		wifi_if_type = WIFI_IF_STA;
+		memcpy(sta_mac, mac->mac_addr, MAC_ADDR_LEN);
 	} else {
 		wifi_if_type = WIFI_IF_AP;
+		memcpy(ap_mac, mac->mac_addr, MAC_ADDR_LEN);
 	}
 
 
@@ -1788,11 +1903,15 @@ int process_add_key(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 		goto SEND_CMD;
 	}
 
+	if (key->algo == WIFI_WPA_ALG_WEP40 || key->algo == WIFI_WPA_ALG_WEP104) {
+		header->cmd_status = CMD_RESPONSE_SUCCESS;
+		goto SEND_CMD;
+	}
 	if (key->index) {
 		if (key->algo == WIFI_WPA_ALG_IGTK) {
 			wifi_wpa_igtk_t igtk = {0};
 
-			ESP_LOGI(TAG, "Setting iGTK [%d]\n", key->index);
+			ESP_LOGI(TAG, "Setting iGTK [%ld]\n", key->index);
 
 			memcpy(igtk.igtk, key->data, key->len);
 			memcpy(igtk.pn, key->seq, key->seq_len);
@@ -1800,7 +1919,7 @@ int process_add_key(uint8_t if_type, uint8_t *payload, uint16_t payload_len)
 			ret = esp_wifi_set_igtk_internal(0, &igtk);
 		} else {
 			/* GTK */
-			ESP_LOGI(TAG, "Setting GTK [%d]\n", key->index);
+			ESP_LOGI(TAG, "Setting GTK [%ld]\n", key->index);
 			ret = esp_wifi_set_sta_key_internal(key->algo, key->mac_addr, key->index,
 					0, key->seq, key->seq_len, key->data, key->len, 
 					KEY_FLAG_GROUP | KEY_FLAG_RX);

@@ -65,10 +65,13 @@
 
 #define ESP_ADDRESS_MASK              0x3FF
 
-#define ESP_VENDOR_ID                 0x6666
-#define ESP_DEVICE_ID_1               0x2222
-#define ESP_DEVICE_ID_2               0x3333
+#define ESP_VENDOR_ID_1             0x6666
+#define ESP_DEVICE_ID_ESP32_1       0x2222
+#define ESP_DEVICE_ID_ESP32_2       0x3333
 
+#define ESP_VENDOR_ID_2             0x0092
+#define ESP_DEVICE_ID_ESP32C6_1     0x6666
+#define ESP_DEVICE_ID_ESP32C6_2     0x7777
 
 enum context_state {
 	ESP_CONTEXT_DISABLED = 0,
@@ -83,6 +86,7 @@ struct esp_sdio_context {
 	struct sk_buff_head    tx_q[MAX_PRIORITY_QUEUES];
 	u32                    rx_byte_count;
 	u32                    tx_buffer_count;
+	u32		       sdio_clk_mhz;
 };
 
 #endif

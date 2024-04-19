@@ -43,11 +43,11 @@ struct timer_handle_t;
  * control_path_platform_init function initializes the control
  * path data structures
  * Input parameter
- *      None
+ *      serial_drv_handle           :   Driver Handle
  * Returns
  *      SUCCESS(0) or FAILURE(-1) of above operation
  */
-int control_path_platform_init(void);
+int control_path_platform_init(struct serial_drv_handle_t* serial_drv_handle);
 
 /*
  * control_path_platform_deinit function cleans up the control
@@ -94,6 +94,12 @@ void hosted_free(void* ptr);
  *      if successful, thread handle else NULL
  */
 void *hosted_thread_create(void (*start_routine)(void const *), void *arg);
+
+#if defined __ANDROID__
+/* hosted_thread_create_hook Hook to execute on thread creation
+ */
+void hosted_thread_create_hook(void);
+#endif
 
 /* hosted_thread_cancel stops and clears thread
  * Input parameter
