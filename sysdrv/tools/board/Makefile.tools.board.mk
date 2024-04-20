@@ -9,7 +9,8 @@ tools_board-builds: \
 		board-build-rockchip_test \
 		board-build-e2fsprogs \
 		board-build-sysstat \
-		board-build-mtd_utils
+		board-build-mtd_utils \
+		board-build-htop
 	@echo "build tools board done"
 
 tools_board-clean:
@@ -23,6 +24,8 @@ tools_board-clean:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/stressapptest distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/rk_ota distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/sysstat distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/htop distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/ncurses distclean
 
 board-build-toolkits:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/toolkits
@@ -78,3 +81,7 @@ board-build-sysstat:
 ifeq ($(ENABLE_SYSSTAT),y)
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/sysstat
 endif
+
+
+board-build-htop:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/htop
