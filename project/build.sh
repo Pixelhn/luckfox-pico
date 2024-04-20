@@ -548,6 +548,8 @@ function build_rootfs(){
 
 	make rootfs -C ${SDK_SYSDRV_DIR}
 
+	build_firmware
+
 	finish_build
 }
 

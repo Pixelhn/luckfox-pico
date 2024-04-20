@@ -18,3 +18,5 @@ for i in /etc/profile.d/*.sh ; do
 	fi
 	unset i
 done
+
+export TERMINFO=/share/terminfo/
