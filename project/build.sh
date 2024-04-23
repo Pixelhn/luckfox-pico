@@ -447,7 +447,7 @@ function build_check(){
 function build_app() {
 	check_config RK_APP_TYPE || return 0
 
-	build_meta --export # export meta header files
+	# build_meta --export # export meta header files
 	test -d ${SDK_APP_DIR} && make -C ${SDK_APP_DIR}
 
 	finish_build
@@ -462,16 +462,6 @@ function build_uboot(){
 
 	make uboot -C ${SDK_SYSDRV_DIR} UBOOT_CFG=${RK_UBOOT_DEFCONFIG} UBOOT_CFG_FRAGMENT=${RK_UBOOT_DEFCONFIG_FRAGMENT}
 
-	finish_build
-}
-
-function build_meta(){
-	msg_info "============Start building meta============"
-	if [ -n "$RK_META_SIZE" ];then
-		if [ -d "${RK_PROJECT_TOP_DIR}/make_meta" ];then
-			${RK_PROJECT_TOP_DIR}/make_meta/build_meta.sh $@
-		fi
-	fi
 	finish_build
 }
 
@@ -1830,7 +1820,7 @@ function build_firmware(){
 	check_config RK_PARTITION_CMD_IN_ENV || return 0
 
 	build_env
-	build_meta
+	# build_meta
 
 	mkdir -p ${RK_PROJECT_OUTPUT_IMAGE}
 
@@ -1876,97 +1866,6 @@ function build_firmware(){
 
 	[ "$RK_ENABLE_RECOVERY" = "y" -o "$RK_ENABLE_OTA" = "y" ] && build_ota
 	# build_updateimg
-
-	finish_build
-}
-
-function __GET_REPO_INFO()
-{
-	local repo_tool _date _stub_path _stub_patch_path
-
-	_date=$1
-	_stub_path=$2
-	_stub_patch_path=$3
-
-	repo_tool="$SDK_ROOT_DIR/.repo/repo/repo"
-
-	test -f $repo_tool || (echo "Not found repo... skip" &&  return 0)
-
-	if ! $repo_tool version &>/dev/null; then
-		repo_tool="repo"
-		if ! $repo_tool version &>/dev/null; then
-			msg_warn "Not found repo tool, ignore"
-			return 0
-		fi
-	fi
-
-	#Generate patches
-	$repo_tool forall -c "$PROJECT_TOP_DIR/scripts/gen_patches_body.sh" || return 0
-
-	#Copy stubs
-	$repo_tool manifest -r -o $SDK_ROOT_DIR/manifest_${_date}.xml || return 0
-
-	local tmp_merge=`mktemp` tmp_merge_new=`mktemp` tmp_path tmp_commit
-	find $_stub_patch_path -name git-merge-base.txt > $tmp_merge_new
-	while read line
-	do
-		tmp_path="${line##*PATCHES/}"
-		tmp_path=$(dirname $tmp_path)
-		tmp_commit=$(grep -w "^commit" $line |awk -F ' ' '{print $2}')
-		echo "$tmp_path $tmp_commit" >> $tmp_merge
-	done < $tmp_merge_new
-	rm -f $tmp_merge_new
-
-	mv $SDK_ROOT_DIR/manifest_${_date}.xml $_stub_path/
-
-	while IFS=' ' read line_project line_commit;do
-		chkcmd="sed -i \"/\<path=\\\"${line_project//\//\\\/}\\\"/s/revision=\\\"\w\{40\}\\\" /revision=\\\"$line_commit\\\" /\"  $_stub_path/manifest_${_date}.xml"
-		eval $chkcmd
-	done < $tmp_merge
-	rm $tmp_merge
-}
-
-function build_save(){
-	IMAGE_PATH=$RK_PROJECT_OUTPUT_IMAGE
-	DATE=$(date  +%Y%m%d.%H%M)
-	STUB_PATH=Image/"${RK_BOOT_MEDIUM}_$RK_KERNEL_DTS"_"$DATE"_RELEASE_TEST
-	STUB_PATH="$(echo $STUB_PATH | tr '[:lower:]' '[:upper:]')"
-	export STUB_PATH=$SDK_ROOT_DIR/$STUB_PATH
-	export STUB_PATCH_PATH=$STUB_PATH/PATCHES
-	STUB_DEBUG_FILES_PATH="$STUB_PATH/DEBUG_FILES"
-	mkdir -p $STUB_PATH $STUB_PATCH_PATH
-
-	mkdir -p $STUB_PATH/IMAGES/
-	test -d $IMAGE_PATH && \
-		(cp $IMAGE_PATH/* $STUB_PATH/IMAGES/ || msg_warn "Not found images... ignore")
-
-	# __GET_REPO_INFO $DATE $STUB_PATH $STUB_PATCH_PATH
-
-	mkdir -p $STUB_DEBUG_FILES_PATH/kernel
-	test -f $RK_PROJECT_PATH_BOARD_BIN/vmlinux && cd $RK_PROJECT_PATH_BOARD_BIN/ && \
-		tar -cjf $STUB_DEBUG_FILES_PATH/kernel/vmlinux.tar.bz2 vmlinux
-
-	test -d $RK_PROJECT_PATH_MEDIA && (cd $RK_PROJECT_PATH_MEDIA && \
-		tar -cf $STUB_DEBUG_FILES_PATH/media_out.lib.tar lib || msg_warn "Not found media_out... ignore")
-
-	test -d $RK_PROJECT_OUTPUT/app_out && cd $RK_PROJECT_OUTPUT && \
-		tar -cf $STUB_DEBUG_FILES_PATH/app_out.tar app_out
-
-	#Save build command info
-	echo "BUILD-ID: $(hostname):$(whoami)" >> $STUB_PATH/build_info.txt
-	build_info >> $STUB_PATH/build_info.txt
-
-	echo "save to $STUB_PATH"
-
-	finish_build
-}
-
-function build_allsave(){
-	# rm -rf ${RK_PROJECT_OUTPUT_IMAGE} ${RK_PROJECT_OUTPUT}
-	build_all
-	build_save
-
-	build_check_power_domain
 
 	finish_build
 }
@@ -2043,8 +1942,8 @@ do
 	case $1 in
 		DEBUG) export RK_BUILD_VERSION_TYPE=DEBUG;;
 		all) option=build_all ;;
-		save) option=build_save ;;
-		allsave) option=build_allsave ;;
+		# save) option=build_save ;;
+		# allsave) option=build_allsave ;;
 		check) option=build_check ;;
 		clean) option="build_clean $2";break;;
 		firmware) option=build_firmware ;;
@@ -2054,7 +1953,7 @@ do
 		factory) option=build_factory ;;
 		recovery) option=build_recovery ;;
 		env) option=build_env ;;
-		meta) option=build_meta ;;
+		# meta) option=build_meta ;;
 		driver) option=build_driver ;;
 		sysdrv) option=build_sysdrv ;;
 		uboot) option=build_uboot ;;
@@ -2071,4 +1970,4 @@ do
 	fi
 done
 
-eval "${option:-build_allsave}"
+eval "${option:-build_all}"
