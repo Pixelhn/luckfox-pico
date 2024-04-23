@@ -10,7 +10,6 @@
 #include "param.h"
 #include "rockiva.h"
 #include "storage.h"
-#include "system.h"
 #include "video.h"
 #include <linux/input.h>
 
@@ -154,7 +153,6 @@ int main(int argc, char **argv) {
 	// init
 	rk_param_init(rkipc_ini_path_);
 
-	rk_system_init();
 	if (rk_param_get_int("video.source:enable_npu", 0))
 		rkipc_rockiva_init();
 	if (rk_param_get_int("video.source:enable_aiq", 1)) {
@@ -179,7 +177,6 @@ int main(int argc, char **argv) {
 	pthread_join(key_chk, NULL);
 	rk_storage_deinit();
 
-	rk_system_deinit();
 	rk_video_deinit();
 	if (rk_param_get_int("video.source:enable_aiq", 1))
 		rk_isp_deinit(0);

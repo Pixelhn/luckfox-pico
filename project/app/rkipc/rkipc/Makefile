@@ -34,7 +34,6 @@ C_SOURCES +=  common/common.c \
 	common/param/dictionary.c \
 	common/rockiva/rockiva.c \
 	common/storage/storage.c \
-	common/system/system.c \
 	common/event/event.c \
 	common/rtmp/rtmp.c \
 	common/region_clip/region_clip.c \
@@ -49,19 +48,20 @@ C_SOURCES +=  common/common.c \
 	common/network/ntp.c \
 	common/socket_server/server.c \
 	common/socket_server/socket.c \
+	common/system/system.c \
 
 C_INCLUDES += -Icommon \
 	-Icommon/osd \
 	-Icommon/param \
 	-Icommon/rockiva \
 	-Icommon/storage \
-	-Icommon/system \
 	-Icommon/roi \
 	-Icommon/rtmp \
 	-Icommon/event \
 	-Icommon/region_clip \
 #	-Icommon/network \
 	-Icommon/socket_server \
+	-Icommon/system \
 
 #lib
 C_INCLUDES += -I${SDK_DIR}/media/iva/out/include \
