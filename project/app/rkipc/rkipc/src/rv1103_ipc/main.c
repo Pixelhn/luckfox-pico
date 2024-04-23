@@ -7,10 +7,8 @@
 #include "common.h"
 #include "isp.h"
 #include "log.h"
-#include "network.h"
 #include "param.h"
 #include "rockiva.h"
-#include "server.h"
 #include "storage.h"
 #include "system.h"
 #include "video.h"
@@ -155,7 +153,7 @@ int main(int argc, char **argv) {
 
 	// init
 	rk_param_init(rkipc_ini_path_);
-	rk_network_init(NULL);
+
 	rk_system_init();
 	if (rk_param_get_int("video.source:enable_npu", 0))
 		rkipc_rockiva_init();
@@ -169,7 +167,7 @@ int main(int argc, char **argv) {
 	rk_video_init();
 	if (rk_param_get_int("audio.0:enable", 0))
 		rkipc_audio_init();
-	rkipc_server_init();
+
 	rk_storage_init();
 	pthread_create(&key_chk, NULL, wait_key_event, NULL);
 
@@ -180,7 +178,7 @@ int main(int argc, char **argv) {
 	// deinit
 	pthread_join(key_chk, NULL);
 	rk_storage_deinit();
-	rkipc_server_deinit();
+
 	rk_system_deinit();
 	rk_video_deinit();
 	if (rk_param_get_int("video.source:enable_aiq", 1))
@@ -190,7 +188,7 @@ int main(int argc, char **argv) {
 	RK_MPI_SYS_Exit();
 	if (rk_param_get_int("video.source:enable_npu", 0))
 		rkipc_rockiva_deinit();
-	rk_network_deinit();
+
 	rk_param_deinit();
 
 	return 0;
