@@ -1,0 +1,71 @@
+rkipc_start()
+{
+	rkipc_ini=/userdata/rkipc.ini
+
+	if [ ! -f "$rkipc_ini" ];then
+		if [ ! -f "/oem/usr/share/rkipc.ini" ]; then
+			lsmod | grep sc4336
+			if [ $? -eq 0 ] ;then
+				cp /oem/usr/share/rkipc-400w.ini $rkipc_ini
+			fi
+			lsmod | grep sc3336
+			if [ $? -eq 0 ] ;then
+				cp /oem/usr/share/rkipc-300w.ini $rkipc_ini
+			fi
+		fi
+	fi
+
+	if [ ! -f "$rkipc_ini" ];then
+		echo "Error: not found rkipc.ini !!!"
+		exit -1
+	fi
+
+	if [ ! -f "/userdata/image.bmp" ]; then
+		cp -fa /oem/usr/share/image.bmp /userdata/
+	fi
+
+	if [ -d "/oem/usr/share/iqfiles" ];then
+		rkipc -a /oem/usr/share/iqfiles -c $rkipc_ini &
+	else
+		rkipc &
+	fi
+}
+
+
+rkipc_stop()
+{
+	echo "Stop Application ..."
+	killall rkipc
+
+	cnt=0
+	while [ 1 ];
+	do
+		sleep 1
+		cnt=$(( cnt + 1 ))
+		if [ $cnt -eq 8 ]; then
+			echo "killall -9 rkipc"
+			killall -9 rkipc
+			sleep 0.1
+			break
+		fi
+		ps|grep rkipc|grep -v grep
+		if [ $? -ne 0 ]; then
+			echo "rkipc exit"
+			break
+		else
+			echo "rkipc active"
+		fi
+	done
+}
+
+case $1 in
+        start)
+				rkipc_start
+                ;;
+        stop)
+				rkipc_stop
+                ;;
+        *)
+                exit 1
+                ;;
+esac
