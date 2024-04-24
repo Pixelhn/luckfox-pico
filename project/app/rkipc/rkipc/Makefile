@@ -95,7 +95,7 @@ LDFLAGS+= \
 	-liconv 		-L$(SDK_DIR)/media/libiconv/out/lib \
 	-lfreetype 		-L$(SDK_DIR)/media/freetype/out/lib \
 	-lz 			-L$(SDK_DIR)/sysdrv/tools/board/toolkits/zlib/out/lib/ \
-	-lwpa_client -Llib/arm-rockchip830-linux-uclibcgnueabihf/ \
+#	-lwpa_client -Llib/arm-rockchip830-linux-uclibcgnueabihf/ \
 
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
