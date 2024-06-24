@@ -1,3 +1,11 @@
+ifeq ($(APP_PARAM), )
+    APP_PARAM:=../Makefile.param
+    include $(APP_PARAM)
+endif
+
+export LC_ALL=C
+SHELL:=/bin/bash
+
 CROSS_COMPILE=arm-rockchip830-linux-uclibcgnueabihf
 CC=${CROSS_COMPILE}-gcc
 STRIP=${CROSS_COMPILE}-strip
@@ -102,7 +110,14 @@ LDFLAGS+= \
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
 
-all: $(BUILD_DIR)/$(TARGET)
+all: $(BUILD_DIR)/$(TARGET) install
+
+install:
+	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/bin, $(BUILD_DIR)/$(TARGET))
+	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/bin, $(BUILD_DIR)/../src/rv1103_ipc/RkLunch.sh)
+	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/bin, $(BUILD_DIR)/../src/rv1103_ipc/RkLunch-stop.sh)
+	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/share, $(BUILD_DIR)/../src/rv1103_ipc/rkipc-300w.ini)
+	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/share, $(BUILD_DIR)/../common/osd/simsun_en.ttf)
 
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
 	$(CC) -c $(CFLAGS) $< -o $@
