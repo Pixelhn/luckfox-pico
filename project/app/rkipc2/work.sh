@@ -4,5 +4,5 @@ make build/rkipc || exit
 
 
 
-cp build/rkipc ~/nfs/
-cp src/rv1103_ipc/rkipc-300w.ini ~/nfs
+sudo cp build/rkipc ~/nfs/
+sudo cp src/rv1103_ipc/rkipc-300w.ini ~/nfs

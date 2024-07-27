@@ -1753,7 +1753,7 @@ int rk_isp_fastboot_init(int cam_id) {
 	}
 
 	ret = rk_aiq_uapi2_sysctl_preInit_iq_addr(aiq_static_info.sensor_info.sensor_name, vir_iqaddr,
-	                                          (size_t *)file_size);
+	                                          (size_t)file_size);
 	if (ret < 0) {
 		LOG_ERROR("%s: failed to load binary iqfiles\n", aiq_static_info.sensor_info.sensor_name);
 	}

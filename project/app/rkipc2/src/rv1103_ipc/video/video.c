@@ -189,7 +189,10 @@ static void *rkipc_get_jpeg(void *arg)
 		if (ret != RK_SUCCESS)
 		{
 			LOG_ERROR("RK_MPI_VENC_GetStream timeout %x\n", ret);
-			break;
+			get_jpeg_cnt--;
+			RK_MPI_VENC_StopRecvFrame(JPEG_VENC_CHN);
+			usleep(300 * 1000);
+			continue;
 		}
 
 		void *data = RK_MPI_MB_Handle2VirAddr(stFrame.pstPack->pMbBlk);
@@ -225,10 +228,11 @@ static void *rkipc_get_jpeg(void *arg)
 			fclose(fp);
 		}
 		loopCount++;
+
+		get_jpeg_cnt--;
+		RK_MPI_VENC_StopRecvFrame(JPEG_VENC_CHN);
 	}
 
-	get_jpeg_cnt--;
-	RK_MPI_VENC_StopRecvFrame(JPEG_VENC_CHN);
 	if (stFrame.pstPack)
 		free(stFrame.pstPack);
 
