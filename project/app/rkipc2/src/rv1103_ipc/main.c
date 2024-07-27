@@ -83,10 +83,12 @@ void rkipc_get_opt(int argc, char *argv[]) {
 }
 
 #define AO_FREAD_SIZE 1024 * 4
-static void *wait_key_event(void *arg) {
+static void *wait_key_event(void *arg)
+{
 	int key_fd;
 	key_fd = open("/dev/input/event0", O_RDONLY);
-	if (key_fd < 0) {
+	if (key_fd < 0)
+	{
 		LOG_ERROR("can't open /dev/input/event0\n");
 		return NULL;
 	}
@@ -95,7 +97,8 @@ static void *wait_key_event(void *arg) {
 	struct timeval timeout;
 	struct input_event key_event;
 
-	while (g_main_run_) {
+	while (g_main_run_)
+	{
 		// The rfds collection must be emptied every time,
 		// otherwise the descriptor changes cannot be detected
 		timeout.tv_sec = 1;
@@ -103,18 +106,20 @@ static void *wait_key_event(void *arg) {
 		FD_SET(key_fd, &rfds);
 		select(nfds, &rfds, NULL, NULL, &timeout);
 		// wait for the key event to occur
-		if (FD_ISSET(key_fd, &rfds)) {
+		if (FD_ISSET(key_fd, &rfds))
+		{
 			read(key_fd, &key_event, sizeof(key_event));
 			LOG_INFO("[timeval:sec:%d,usec:%d,type:%d,code:%d,value:%d]\n", key_event.time.tv_sec,
 			         key_event.time.tv_usec, key_event.type, key_event.code, key_event.value);
 			if ((key_event.code == KEY_VOLUMEDOWN) && key_event.value)
 			{
 				LOG_INFO("get KEY_VOLUMEDOWN\n");
-				rk_take_photo();
 			}
 
-			if ((key_event.code == KEY_VOLUMEUP) && key_event.value) {
+			if ((key_event.code == KEY_VOLUMEUP) && key_event.value)
+			{
 				LOG_INFO("get KEY_VOLUMEUP\n");
+				rk_take_photo();
 			}
 		}
 	}
@@ -156,10 +161,7 @@ int main(int argc, char **argv)
 
 	RK_MPI_SYS_Init();
 	rk_video_init();
-	if (rk_param_get_int("audio.0:enable", 0))
-		rkipc_audio_init();
 
-	rk_storage_init();
 	pthread_create(&key_chk, NULL, wait_key_event, NULL);
 
 	while (g_main_run_) {
@@ -168,13 +170,10 @@ int main(int argc, char **argv)
 
 	// deinit
 	pthread_join(key_chk, NULL);
-	rk_storage_deinit();
 
 	rk_video_deinit();
 	if (rk_param_get_int("video.source:enable_aiq", 1))
 		rk_isp_deinit(0);
-	if (rk_param_get_int("audio.0:enable", 0))
-		rkipc_audio_deinit();
 	RK_MPI_SYS_Exit();
 	if (rk_param_get_int("video.source:enable_npu", 0))
 		rkipc_rockiva_deinit();

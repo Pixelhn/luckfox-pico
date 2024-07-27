@@ -4,6 +4,7 @@
 
 #include "video.h"
 #include "audio.h"
+#include "log.h"
 #include "rockiva.h"
 #include <stdio.h>
 
@@ -95,16 +96,7 @@ static void *rkipc_get_venc_0(void *arg) {
 				rtsp_do_event(g_rtsplive);
 				pthread_mutex_unlock(&g_rtsp_mutex);
 			}
-			if ((stFrame.pstPack->DataType.enH264EType == H264E_NALU_IDRSLICE) ||
-			    (stFrame.pstPack->DataType.enH264EType == H264E_NALU_ISLICE) ||
-			    (stFrame.pstPack->DataType.enH265EType == H265E_NALU_IDRSLICE) ||
-			    (stFrame.pstPack->DataType.enH265EType == H265E_NALU_ISLICE)) {
-				rk_storage_write_video_frame(0, data, stFrame.pstPack->u32Len,
-				                             stFrame.pstPack->u64PTS, 1);
-			} else {
-				rk_storage_write_video_frame(0, data, stFrame.pstPack->u32Len,
-				                             stFrame.pstPack->u64PTS, 0);
-			}
+
 			// 7.release the frame
 			ret = RK_MPI_VENC_ReleaseStream(VIDEO_PIPE_0, &stFrame);
 			if (ret != RK_SUCCESS) {
@@ -147,16 +139,7 @@ static void *rkipc_get_venc_1(void *arg) {
 				rtsp_do_event(g_rtsplive);
 				pthread_mutex_unlock(&g_rtsp_mutex);
 			}
-			if ((stFrame.pstPack->DataType.enH264EType == H264E_NALU_IDRSLICE) ||
-			    (stFrame.pstPack->DataType.enH264EType == H264E_NALU_ISLICE) ||
-			    (stFrame.pstPack->DataType.enH265EType == H265E_NALU_IDRSLICE) ||
-			    (stFrame.pstPack->DataType.enH265EType == H265E_NALU_ISLICE)) {
-				rk_storage_write_video_frame(1, data, stFrame.pstPack->u32Len,
-				                             stFrame.pstPack->u64PTS, 1);
-			} else {
-				rk_storage_write_video_frame(1, data, stFrame.pstPack->u32Len,
-				                             stFrame.pstPack->u64PTS, 0);
-			}
+
 			// 7.release the frame
 			ret = RK_MPI_VENC_ReleaseStream(VIDEO_PIPE_1, &stFrame);
 			if (ret != RK_SUCCESS)
@@ -172,7 +155,8 @@ static void *rkipc_get_venc_1(void *arg) {
 	return 0;
 }
 
-static void *rkipc_get_jpeg(void *arg) {
+static void *rkipc_get_jpeg(void *arg)
+{
 	LOG_DEBUG("#Start %s thread, arg:%p\n", __func__, arg);
 	prctl(PR_SET_NAME, "RkipcGetJpeg", 0, 0, 0);
 	VENC_STREAM_S stFrame;
@@ -184,8 +168,6 @@ static void *rkipc_get_jpeg(void *arg) {
 
 	memset(&record_path, 0, sizeof(record_path));
 	strcat(record_path, rk_param_get_string("storage:mount_path", "/userdata"));
-	strcat(record_path, "/");
-	strcat(record_path, rk_param_get_string("storage.0:folder_name", "video0"));
 
 	stFrame.pstPack = malloc(sizeof(VENC_PACK_S));
 	// drop first frame
@@ -195,64 +177,73 @@ static void *rkipc_get_jpeg(void *arg) {
 		RK_MPI_VENC_ReleaseStream(JPEG_VENC_CHN, &stFrame);
 	else
 		LOG_ERROR("RK_MPI_VENC_GetStream timeout %x\n", ret);
-	while (g_video_run_) {
-		if (!get_jpeg_cnt) {
+	while (g_video_run_)
+	{
+		if (!get_jpeg_cnt)
+		{
 			usleep(300 * 1000);
 			continue;
 		}
 		// 5.get the frame
 		ret = RK_MPI_VENC_GetStream(JPEG_VENC_CHN, &stFrame, 1000);
-		if (ret == RK_SUCCESS) {
-			void *data = RK_MPI_MB_Handle2VirAddr(stFrame.pstPack->pMbBlk);
-			LOG_DEBUG("Count:%d, Len:%d, PTS is %" PRId64 ", enH264EType is %d\n", loopCount,
-			          stFrame.pstPack->u32Len, stFrame.pstPack->u64PTS,
-			          stFrame.pstPack->DataType.enH264EType);
-			// save jpeg file
-			time_t t = time(NULL);
-			struct tm tm = *localtime(&t);
-			snprintf(file_name, 128, "%s/%d%02d%02d%02d%02d%02d.jpeg", record_path,
-			         tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
-			         tm.tm_sec);
-			LOG_DEBUG("file_name is %s, u32Len is %d\n", file_name, stFrame.pstPack->u32Len);
-			FILE *fp = fopen(file_name, "wb");
-			if (fp == NULL) {
-				LOG_ERROR("fp is NULL\n");
-			} else {
-				fwrite(data, 1, stFrame.pstPack->u32Len, fp);
-			}
-			// 7.release the frame
-			ret = RK_MPI_VENC_ReleaseStream(JPEG_VENC_CHN, &stFrame);
-			if (ret != RK_SUCCESS) {
-				LOG_ERROR("RK_MPI_VENC_ReleaseStream fail %x\n", ret);
-			}
-			if (fp) {
-				fflush(fp);
-				fclose(fp);
-			}
-			loopCount++;
-		} else {
+		if (ret != RK_SUCCESS)
+		{
 			LOG_ERROR("RK_MPI_VENC_GetStream timeout %x\n", ret);
+			break;
 		}
-		get_jpeg_cnt--;
-		RK_MPI_VENC_StopRecvFrame(JPEG_VENC_CHN);
-		// usleep(33 * 1000);
+
+		void *data = RK_MPI_MB_Handle2VirAddr(stFrame.pstPack->pMbBlk);
+		LOG_DEBUG("Count:%d, Len:%d, PTS is %" PRId64 ", enH264EType is %d\n", loopCount,
+		          stFrame.pstPack->u32Len, stFrame.pstPack->u64PTS,
+		          stFrame.pstPack->DataType.enH264EType);
+
+		// save jpeg file
+		time_t t = time(NULL);
+		struct tm tm = *localtime(&t);
+		snprintf(file_name, 128, "%s/%d%02d%02d%02d%02d%02d.jpeg", record_path,
+		         tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
+		         tm.tm_sec);
+		LOG_INFO("file_name is %s, u32Len is %d\n", file_name, stFrame.pstPack->u32Len);
+		FILE *fp = fopen(file_name, "wb");
+		if (fp == NULL)
+		{
+			LOG_ERROR("fp is NULL %s\n", file_name);
+		}
+		else
+		{
+			fwrite(data, 1, stFrame.pstPack->u32Len, fp);
+		}
+		// 7.release the frame
+		ret = RK_MPI_VENC_ReleaseStream(JPEG_VENC_CHN, &stFrame);
+		if (ret != RK_SUCCESS)
+		{
+			LOG_ERROR("RK_MPI_VENC_ReleaseStream fail %x\n", ret);
+		}
+		if (fp)
+		{
+			fflush(fp);
+			fclose(fp);
+		}
+		loopCount++;
 	}
+
+	get_jpeg_cnt--;
+	RK_MPI_VENC_StopRecvFrame(JPEG_VENC_CHN);
 	if (stFrame.pstPack)
 		free(stFrame.pstPack);
 
 	return 0;
 }
 
-int rk_take_photo() {
+int rk_take_photo()
+{
 	LOG_DEBUG("start\n");
-	if (get_jpeg_cnt) {
+	if (get_jpeg_cnt)
+	{
 		LOG_WARN("the last photo was not completed\n");
 		return -1;
 	}
-	if (rkipc_storage_dev_mount_status_get() != DISK_MOUNTED) {
-		LOG_WARN("dev not mount\n");
-		return -1;
-	}
+
 	VENC_RECV_PIC_PARAM_S stRecvParam;
 	memset(&stRecvParam, 0, sizeof(VENC_RECV_PIC_PARAM_S));
 	stRecvParam.s32RecvPicNum = 1;
@@ -1992,7 +1983,6 @@ int rk_video_deinit() {
 extern char *rkipc_iq_file_path_;
 int rk_video_restart() {
 	int ret;
-	ret = rk_storage_deinit();
 	ret |= rk_video_deinit();
 	if (rk_param_get_int("video.source:enable_aiq", 1))
 		ret |= rk_isp_deinit(0);
@@ -2002,9 +1992,6 @@ int rk_video_restart() {
 			ret |= rk_isp_set_from_ini(0);
 	}
 	ret |= rk_video_init();
-	if (rk_param_get_int("audio.0:enable", 0))
-		rkipc_audio_rtsp_init();
-	ret |= rk_storage_init();
 
 	return ret;
 }

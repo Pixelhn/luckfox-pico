@@ -8,6 +8,7 @@
 #include <rk_aiq_user_api2_camgroup.h>
 #include <rk_aiq_user_api2_imgproc.h>
 #include <rk_aiq_user_api2_sysctl.h>
+#include <stdio.h>
 #include <sys/mman.h>
 
 #ifdef LOG_TAG
@@ -150,7 +151,7 @@ int rk_isp_init(int cam_id, char *iqfile_path) {
 	if (iqfile_path)
 		memcpy(g_iq_file_dir_, iqfile_path, strlen(iqfile_path));
 	else
-		memcpy(g_iq_file_dir_, "/etc/iqfiles", strlen("/etc/iqfiles"));
+		snprintf(g_iq_file_dir_, 256, "/oem/usr/share/iqfiles");
 	LOG_INFO("g_iq_file_dir_ is %s\n", g_iq_file_dir_);
 
 	const char *scenario = rk_param_get_string("isp:scenario", "normal");

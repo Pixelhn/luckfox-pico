@@ -22,7 +22,7 @@ LDFLAGS+=
 #main
 C_SOURCES += src/rv1103_ipc/main.c \
 	src/rv1103_ipc/video/video.c \
-	src/rv1103_ipc/audio/audio.c
+	# src/rv1103_ipc/audio/audio.c
 
 C_INCLUDES += -Isrc/rv1103_ipc/audio \
 	-Isrc/rv1103_ipc/video
@@ -41,8 +41,8 @@ C_SOURCES +=  common/common.c \
 	common/param/iniparser.c \
 	common/param/dictionary.c \
 	common/rockiva/rockiva.c \
-	common/storage/storage.c \
-#	common/network/network.c \
+#	common/storage/storage.c \
+	common/network/network.c \
 	common/network/Rk_wifi.c \
 	common/network/utility.c \
 	common/network/RK_encode.c \
