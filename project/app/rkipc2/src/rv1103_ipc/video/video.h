@@ -1,13 +1,11 @@
 // Copyright 2022 Rockchip Electronics Co., Ltd. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#include "common.h"
 #include "isp.h"
 #include "osd.h"
 
 #include "rockiva.h"
 #include "rtsp_demo.h"
-#include "storage.h"
 
 #include "rk_mpi_mmz.h"
 #include <rk_debug.h>

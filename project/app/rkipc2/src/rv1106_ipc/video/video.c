@@ -117,6 +117,12 @@ static void *get_vi_send_vo(void *arg) {
 }
 #endif
 
+int rkipc_ivs_init();
+int rkipc_ivs_deinit();
+int rkipc_vi_dev_deinit();
+int rkipc_osd_draw_nn_init();
+int rkipc_osd_draw_nn_deinit();
+
 static void *rkipc_get_venc_0(void *arg) {
 	LOG_DEBUG("#Start %s thread, arg:%p\n", __func__, arg);
 	prctl(PR_SET_NAME, "RkipcVenc0", 0, 0, 0);
@@ -145,22 +151,7 @@ static void *rkipc_get_venc_0(void *arg) {
 				rtsp_do_event(g_rtsplive);
 				pthread_mutex_unlock(&g_rtsp_mutex);
 			}
-			if ((stFrame.pstPack->DataType.enH264EType == H264E_NALU_IDRSLICE) ||
-			    (stFrame.pstPack->DataType.enH264EType == H264E_NALU_ISLICE) ||
-			    (stFrame.pstPack->DataType.enH265EType == H265E_NALU_IDRSLICE) ||
-			    (stFrame.pstPack->DataType.enH265EType == H265E_NALU_ISLICE)) {
-				rk_storage_write_video_frame(0, data, stFrame.pstPack->u32Len,
-				                             stFrame.pstPack->u64PTS, 1);
-				if (enable_rtmp)
-					rk_rtmp_write_video_frame(0, data, stFrame.pstPack->u32Len,
-					                          stFrame.pstPack->u64PTS, 1);
-			} else {
-				rk_storage_write_video_frame(0, data, stFrame.pstPack->u32Len,
-				                             stFrame.pstPack->u64PTS, 0);
-				if (enable_rtmp)
-					rk_rtmp_write_video_frame(0, data, stFrame.pstPack->u32Len,
-					                          stFrame.pstPack->u64PTS, 0);
-			}
+
 			// 7.release the frame
 			ret = RK_MPI_VENC_ReleaseStream(VIDEO_PIPE_0, &stFrame);
 			if (ret != RK_SUCCESS) {
@@ -433,22 +424,7 @@ static void *rkipc_get_venc_1(void *arg) {
 				rtsp_do_event(g_rtsplive);
 				pthread_mutex_unlock(&g_rtsp_mutex);
 			}
-			if ((stFrame.pstPack->DataType.enH264EType == H264E_NALU_IDRSLICE) ||
-			    (stFrame.pstPack->DataType.enH264EType == H264E_NALU_ISLICE) ||
-			    (stFrame.pstPack->DataType.enH265EType == H265E_NALU_IDRSLICE) ||
-			    (stFrame.pstPack->DataType.enH265EType == H265E_NALU_ISLICE)) {
-				rk_storage_write_video_frame(1, data, stFrame.pstPack->u32Len,
-				                             stFrame.pstPack->u64PTS, 1);
-				if (enable_rtmp)
-					rk_rtmp_write_video_frame(1, data, stFrame.pstPack->u32Len,
-					                          stFrame.pstPack->u64PTS, 1);
-			} else {
-				rk_storage_write_video_frame(1, data, stFrame.pstPack->u32Len,
-				                             stFrame.pstPack->u64PTS, 0);
-				if (enable_rtmp)
-					rk_rtmp_write_video_frame(1, data, stFrame.pstPack->u32Len,
-					                          stFrame.pstPack->u64PTS, 0);
-			}
+
 			// 7.release the frame
 			ret = RK_MPI_VENC_ReleaseStream(VIDEO_PIPE_1, &stFrame);
 			if (ret != RK_SUCCESS)
@@ -721,24 +697,6 @@ int rkipc_rtsp_deinit() {
 		rtsp_del_demo(g_rtsplive);
 	g_rtsplive = NULL;
 	return 0;
-}
-
-int rkipc_rtmp_init() {
-	int ret = 0;
-	ret |= rk_rtmp_init(0, RTMP_URL_0);
-	ret |= rk_rtmp_init(1, RTMP_URL_1);
-	// ret |= rk_rtmp_init(2, RTMP_URL_2);
-
-	return ret;
-}
-
-int rkipc_rtmp_deinit() {
-	int ret = 0;
-	ret |= rk_rtmp_deinit(0);
-	ret |= rk_rtmp_deinit(1);
-	// ret |= rk_rtmp_deinit(2);
-
-	return ret;
 }
 
 int rkipc_vi_dev_init() {
@@ -2387,58 +2345,6 @@ int rk_video_get_resolution(int stream_id, char **value) {
 	return 0;
 }
 
-int rk_video_set_resolution(int stream_id, const char *value) {
-	char entry[128] = {'\0'};
-	int width, height, ret;
-
-	sscanf(value, "%d*%d", &width, &height);
-	LOG_INFO("value is %s, width is %d, height is %d\n", value, width, height);
-
-	// unbind
-	vi_chn.enModId = RK_ID_VI;
-	vi_chn.s32DevId = 0;
-	vi_chn.s32ChnId = stream_id;
-	venc_chn.enModId = RK_ID_VENC;
-	venc_chn.s32DevId = 0;
-	venc_chn.s32ChnId = stream_id;
-	ret = RK_MPI_SYS_UnBind(&vi_chn, &venc_chn);
-	if (ret)
-		LOG_ERROR("Unbind VI and VENC error! ret=%#x\n", ret);
-	else
-		LOG_DEBUG("Unbind VI and VENC success\n");
-
-	snprintf(entry, 127, "video.%d:width", stream_id);
-	rk_param_set_int(entry, width);
-	snprintf(entry, 127, "video.%d:height", stream_id);
-	rk_param_set_int(entry, height);
-
-	VENC_CHN_ATTR_S venc_chn_attr;
-	RK_MPI_VENC_GetChnAttr(stream_id, &venc_chn_attr);
-	venc_chn_attr.stVencAttr.u32PicWidth = width;
-	venc_chn_attr.stVencAttr.u32PicHeight = height;
-	venc_chn_attr.stVencAttr.u32VirWidth = width;
-	venc_chn_attr.stVencAttr.u32VirHeight = height;
-	ret = RK_MPI_VENC_SetChnAttr(stream_id, &venc_chn_attr);
-	if (ret)
-		LOG_ERROR("RK_MPI_VENC_SetChnAttr error! ret=%#x\n", ret);
-	VI_CHN_ATTR_S vi_chn_attr;
-	RK_MPI_VI_GetChnAttr(0, stream_id, &vi_chn_attr);
-	vi_chn_attr.stSize.u32Width = width;
-	vi_chn_attr.stSize.u32Height = height;
-	ret = RK_MPI_VI_SetChnAttr(pipe_id_, stream_id, &vi_chn_attr);
-	if (ret)
-		LOG_ERROR("RK_MPI_VI_SetChnAttr error! ret=%#x\n", ret);
-
-	if (stream_id == DRAW_NN_VENC_CHN_ID && enable_npu)
-		rkipc_osd_draw_nn_change();
-	rk_osd_privacy_mask_restart();
-	rk_roi_set_all(); // update roi info, and osd cover attach vi, no update required
-	ret = RK_MPI_SYS_Bind(&vi_chn, &venc_chn);
-	if (ret)
-		LOG_ERROR("Unbind VI and VENC error! ret=%#x\n", ret);
-
-	return 0;
-}
 
 int rk_video_get_frame_rate(int stream_id, char **value) {
 	char entry[128] = {'\0'};
@@ -2541,39 +2447,6 @@ int rk_video_get_rotation(int *value) {
 	char entry[128] = {'\0'};
 	snprintf(entry, 127, "video.source:rotation");
 	*value = rk_param_get_int(entry, 0);
-
-	return 0;
-}
-
-int rk_video_set_rotation(int value) {
-	int ret = 0;
-	int rotation = 0;
-	char entry[128] = {'\0'};
-	snprintf(entry, 127, "video.source:rotation");
-	rk_param_set_int(entry, value);
-	if (value == 0) {
-		rotation = ROTATION_0;
-	} else if (value == 90) {
-		rotation = ROTATION_90;
-	} else if (value == 180) {
-		rotation = ROTATION_180;
-	} else if (value == 270) {
-		rotation = ROTATION_270;
-	}
-	ret = RK_MPI_VENC_SetChnRotation(VIDEO_PIPE_0, rotation);
-	if (ret)
-		LOG_ERROR("RK_MPI_VENC_SetChnRotation VIDEO_PIPE_0 error! ret=%#x\n", ret);
-	ret = RK_MPI_VENC_SetChnRotation(VIDEO_PIPE_1, rotation);
-	if (ret)
-		LOG_ERROR("RK_MPI_VENC_SetChnRotation VIDEO_PIPE_1 error! ret=%#x\n", ret);
-	ret = RK_MPI_VENC_SetChnRotation(JPEG_VENC_CHN, rotation);
-	if (ret)
-		LOG_ERROR("RK_MPI_VENC_SetChnRotation JPEG_VENC_CHN error! ret=%#x\n", ret);
-	rk_roi_set_all(); // update roi info
-	// update osd info, cover currently attaches to VI
-	rk_osd_privacy_mask_restart();
-	if (enable_npu)
-		rkipc_osd_draw_nn_change();
 
 	return 0;
 }
@@ -3059,10 +2932,7 @@ int rk_take_photo() {
 		LOG_WARN("the last photo was not completed\n");
 		return -1;
 	}
-	if (rkipc_storage_dev_mount_status_get() != DISK_MOUNTED) {
-		LOG_WARN("dev not mount\n");
-		return -1;
-	}
+
 	VENC_RECV_PIC_PARAM_S stRecvParam;
 	memset(&stRecvParam, 0, sizeof(VENC_RECV_PIC_PARAM_S));
 	stRecvParam.s32RecvPicNum = 1;
@@ -3071,64 +2941,6 @@ int rk_take_photo() {
 	get_jpeg_cnt++;
 
 	return 0;
-}
-
-int rk_roi_set(roi_data_s *roi_data) {
-	// LOG_DEBUG("id is %d\n", id);
-	int ret = 0;
-	int venc_chn = 0;
-	VENC_ROI_ATTR_S pstRoiAttr;
-	pstRoiAttr.u32Index = roi_data->id;
-	pstRoiAttr.bEnable = roi_data->enabled;
-	pstRoiAttr.bAbsQp = RK_FALSE;
-	pstRoiAttr.bIntra = RK_FALSE;
-	pstRoiAttr.stRect.s32X = roi_data->position_x;
-	pstRoiAttr.stRect.s32Y = roi_data->position_y;
-	pstRoiAttr.stRect.u32Width = roi_data->width;
-	pstRoiAttr.stRect.u32Height = roi_data->height;
-	switch (roi_data->quality_level) {
-	case 6:
-		pstRoiAttr.s32Qp = -16;
-		break;
-	case 5:
-		pstRoiAttr.s32Qp = -14;
-		break;
-	case 4:
-		pstRoiAttr.s32Qp = -12;
-		break;
-	case 3:
-		pstRoiAttr.s32Qp = -10;
-		break;
-	case 2:
-		pstRoiAttr.s32Qp = -8;
-		break;
-	case 1:
-	default:
-		pstRoiAttr.s32Qp = -6;
-	}
-
-	if (!strcmp(roi_data->stream_type, "mainStream") &&
-	    rk_param_get_int("video.source:enable_venc_0", 0)) {
-		venc_chn = 0;
-	} else if (!strcmp(roi_data->stream_type, "subStream") &&
-	           rk_param_get_int("video.source:enable_venc_1", 0)) {
-		venc_chn = 1;
-	} else if (!strcmp(roi_data->stream_type, "thirdStream") &&
-	           rk_param_get_int("video.source:enable_venc_2", 0)) {
-		venc_chn = 2;
-	} else {
-		LOG_DEBUG("%s is not exit\n", roi_data->stream_type);
-		return -1;
-	}
-
-	ret = RK_MPI_VENC_SetRoiAttr(venc_chn, &pstRoiAttr);
-	if (RK_SUCCESS != ret) {
-		LOG_ERROR("RK_MPI_VENC_SetRoiAttr to venc %d failed with %#x\n", venc_chn, ret);
-		return RK_FAILURE;
-	}
-	LOG_DEBUG("RK_MPI_VENC_SetRoiAttr to venc %d success\n", venc_chn);
-
-	return ret;
 }
 
 // int rk_region_clip_set(int venc_chn, region_clip_data_s *region_clip_data) {
@@ -3170,10 +2982,8 @@ int rk_video_init() {
 	enable_venc_0 = rk_param_get_int("video.source:enable_venc_0", 1);
 	enable_venc_1 = rk_param_get_int("video.source:enable_venc_1", 1);
 	enable_rtsp = rk_param_get_int("video.source:enable_rtsp", 1);
-	enable_rtmp = rk_param_get_int("video.source:enable_rtmp", 1);
-	LOG_INFO("enable_jpeg is %d, enable_venc_0 is %d, enable_venc_1 is %d, enable_rtsp is %d, "
-	         "enable_rtmp is %d\n",
-	         enable_jpeg, enable_venc_0, enable_venc_1, enable_rtsp, enable_rtmp);
+	LOG_INFO("enable_jpeg is %d, enable_venc_0 is %d, enable_venc_1 is %d, enable_rtsp is %d\n",
+	         enable_jpeg, enable_venc_0, enable_venc_1, enable_rtsp);
 
 	g_vi_chn_id = rk_param_get_int("video.source:vi_chn_id", 0);
 	g_enable_vo = rk_param_get_int("video.source:enable_vo", 1);
@@ -3188,8 +2998,7 @@ int rk_video_init() {
 	ret |= rkipc_vi_dev_init();
 	if (enable_rtsp)
 		ret |= rkipc_rtsp_init();
-	if (enable_rtmp)
-		ret |= rkipc_rtmp_init();
+
 	if (enable_venc_0)
 		ret |= rkipc_pipe_0_init();
 	if (enable_venc_1)
@@ -3198,8 +3007,8 @@ int rk_video_init() {
 		ret |= rkipc_pipe_jpeg_init();
 	// if (g_enable_vo)
 	// 	ret |= rkipc_pipe_vpss_vo_init();
-	rk_roi_set_callback_register(rk_roi_set);
-	ret |= rk_roi_set_all();
+
+
 	// rk_region_clip_set_callback_register(rk_region_clip_set);
 	// rk_region_clip_set_all();
 	if (enable_npu || enable_ivs) {
@@ -3222,7 +3031,7 @@ int rk_video_deinit() {
 	if (enable_npu || enable_ivs)
 		ret |= rkipc_pipe_2_deinit();
 	// rk_region_clip_set_callback_register(NULL);
-	rk_roi_set_callback_register(NULL);
+
 	if (enable_osd)
 		ret |= rkipc_osd_deinit();
 	// if (g_enable_vo)
@@ -3239,8 +3048,6 @@ int rk_video_deinit() {
 		ret |= rkipc_pipe_jpeg_deinit();
 	}
 	ret |= rkipc_vi_dev_deinit();
-	if (enable_rtmp)
-		ret |= rkipc_rtmp_deinit();
 	if (enable_rtsp)
 		ret |= rkipc_rtsp_deinit();
 
@@ -3250,7 +3057,7 @@ int rk_video_deinit() {
 extern char *rkipc_iq_file_path_;
 int rk_video_restart() {
 	int ret;
-	ret = rk_storage_deinit();
+
 	ret |= rk_video_deinit();
 	if (rk_param_get_int("video.source:enable_aiq", 1))
 		ret |= rk_isp_deinit(0);
@@ -3260,9 +3067,6 @@ int rk_video_restart() {
 			ret |= rk_isp_set_from_ini(0);
 	}
 	ret |= rk_video_init();
-	if (rk_param_get_int("audio.0:enable", 0))
-		rkipc_audio_rtsp_init();
-	ret |= rk_storage_init();
 
 	return ret;
 }

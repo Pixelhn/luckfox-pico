@@ -7,12 +7,8 @@
 #include "common.h"
 #include "isp.h"
 #include "log.h"
-#include "network.h"
 #include "param.h"
 #include "rockiva.h"
-#include "server.h"
-#include "storage.h"
-#include "system.h"
 #include "video.h"
 #include <linux/input.h>
 
@@ -112,20 +108,6 @@ static void *wait_key_event(void *arg) {
 			         key_event.time.tv_usec, key_event.type, key_event.code, key_event.value);
 			if ((key_event.code == KEY_VOLUMEDOWN) && key_event.value) {
 				LOG_INFO("get KEY_VOLUMEDOWN\n");
-				rkipc_ao_init();
-				FILE *fp = fopen("/oem/usr/share/speaker_test.wav", "rb");
-				int size = AO_FREAD_SIZE;
-				char *tmp_data;
-				tmp_data = malloc(AO_FREAD_SIZE);
-				while (size > 0) {
-					memset((void *)tmp_data, 0, AO_FREAD_SIZE);
-					size = fread(tmp_data, 1, AO_FREAD_SIZE, fp);
-					rkipc_ao_write(tmp_data, AO_FREAD_SIZE);
-				}
-				rkipc_ao_write(tmp_data, 0);
-				free(tmp_data);
-				fclose(fp);
-				rkipc_ao_deinit();
 			}
 
 			if ((key_event.code == KEY_VOLUMEUP) && key_event.value) {
@@ -155,8 +137,7 @@ int main(int argc, char **argv) {
 
 	// init
 	rk_param_init(rkipc_ini_path_);
-	rk_network_init(NULL);
-	rk_system_init();
+
 	if (rk_param_get_int("video.source:enable_npu", 0))
 		rkipc_rockiva_init();
 	if (rk_param_get_int("video.source:enable_aiq", 1)) {
@@ -167,10 +148,7 @@ int main(int argc, char **argv) {
 	}
 	RK_MPI_SYS_Init();
 	rk_video_init();
-	if (rk_param_get_int("audio.0:enable", 0))
-		rkipc_audio_init();
-	rkipc_server_init();
-	rk_storage_init();
+
 	pthread_create(&key_chk, NULL, wait_key_event, NULL);
 
 	while (g_main_run_) {
@@ -179,18 +157,15 @@ int main(int argc, char **argv) {
 
 	// deinit
 	pthread_join(key_chk, NULL);
-	rk_storage_deinit();
-	rkipc_server_deinit();
-	rk_system_deinit();
+
 	rk_video_deinit();
 	if (rk_param_get_int("video.source:enable_aiq", 1))
 		rk_isp_deinit(0);
-	if (rk_param_get_int("audio.0:enable", 0))
-		rkipc_audio_deinit();
+
 	RK_MPI_SYS_Exit();
 	if (rk_param_get_int("video.source:enable_npu", 0))
 		rkipc_rockiva_deinit();
-	rk_network_deinit();
+
 	rk_param_deinit();
 
 	return 0;

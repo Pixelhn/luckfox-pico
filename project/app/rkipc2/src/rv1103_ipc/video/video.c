@@ -4,7 +4,6 @@
 
 #include "video.h"
 #include "audio.h"
-#include "log.h"
 #include "rockiva.h"
 #include <stdio.h>
 
