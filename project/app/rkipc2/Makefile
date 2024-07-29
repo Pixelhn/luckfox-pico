@@ -20,12 +20,26 @@ LDFLAGS+=
 #-static
 
 #main
+ifeq ($(RK_APP_TYPE), RKIPC_RV1103)
+
 C_SOURCES += src/rv1103_ipc/main.c \
 	src/rv1103_ipc/video/video.c \
 	# src/rv1103_ipc/audio/audio.c
 
 C_INCLUDES += -Isrc/rv1103_ipc/audio \
 	-Isrc/rv1103_ipc/video
+
+else ifeq ($(RK_APP_TYPE), RKIPC_RV1106)
+
+C_SOURCES += src/rv1106_ipc/main.c \
+	src/rv1106_ipc/video/video.c \
+	# src/rv1103_ipc/audio/audio.c
+
+C_INCLUDES += -Isrc/rv1106_ipc/audio \
+	-Isrc/rv1106_ipc/video
+
+endif
+
 
 #isp
 C_SOURCES += common/isp/rv1106/isp.c
@@ -114,9 +128,9 @@ all: $(BUILD_DIR)/$(TARGET) install
 
 install:
 	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/bin, $(BUILD_DIR)/$(TARGET))
-	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/bin, $(BUILD_DIR)/../src/rv1103_ipc/RkLunch.sh)
-	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/bin, $(BUILD_DIR)/../src/rv1103_ipc/RkLunch-stop.sh)
-	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/share, $(BUILD_DIR)/../src/rv1103_ipc/rkipc-300w.ini)
+	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/bin, $(BUILD_DIR)/../src/RkLunch.sh)
+	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/bin, $(BUILD_DIR)/../src/RkLunch-stop.sh)
+	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/share, $(BUILD_DIR)/../src/rkipc-300w.ini)
 	$(call MAROC_COPY_PKG_TO_APP_OUTPUT, $(RK_PROJECT_PATH_APP)/share, $(BUILD_DIR)/../common/osd/simsun_en.ttf)
 
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
