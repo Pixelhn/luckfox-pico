@@ -5,6 +5,10 @@
 #ifndef __RKIPC_STORAGE_H__
 #define __RKIPC_STORAGE_H__
 
+#if __cplusplus
+extern "C" {
+#endif
+
 #include <dirent.h>
 #include <fcntl.h>
 #include <linux/netlink.h>

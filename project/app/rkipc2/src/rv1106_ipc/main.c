@@ -10,6 +10,7 @@
 #include "param.h"
 #include "rockiva.h"
 #include "video.h"
+#include "rtsp_live.h"
 #include <linux/input.h>
 
 #ifdef LOG_TAG
@@ -137,6 +138,9 @@ int main(int argc, char **argv) {
 
 	// init
 	rk_param_init(rkipc_ini_path_);
+
+
+	rtsp_live_init();
 
 	if (rk_param_get_int("video.source:enable_npu", 0))
 		rkipc_rockiva_init();

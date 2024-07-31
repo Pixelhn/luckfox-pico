@@ -9,6 +9,7 @@ SHELL:=/bin/bash
 CROSS_COMPILE=arm-rockchip830-linux-uclibcgnueabihf
 CC=${CROSS_COMPILE}-gcc
 STRIP=${CROSS_COMPILE}-strip
+CPP=${CROSS_COMPILE}-g++
 
 BUILD_DIR=build
 SDK_DIR=../../..
@@ -79,6 +80,12 @@ C_INCLUDES += -Icommon \
 	-Icommon/param \
 	-Icommon/rockiva \
 	-Icommon/storage \
+	-Icommon/rtsp \
+	-Icommon/rtsp/out/include/liveMedia/ \
+	-Icommon/rtsp/out/include/groupsock/ \
+	-Icommon/rtsp/out/include/UsageEnvironment/ \
+	-Icommon/rtsp/out/include/groupsock/ \
+	-Icommon/rtsp/out/include/BasicUsageEnvironment/ \
 #	-Icommon/network \
 	-Icommon/system \
 	-Icommon/roi \
@@ -104,11 +111,12 @@ C_INCLUDES += -I${SDK_DIR}/media/iva/out/include \
 	-I${SDK_DIR}/media/isp/release_camera_engine_rkaiq_rv1106_arm-rockchip830-linux-uclibcgnueabihf/include/rkaiq/iq_parser_v2 \
 	-I${SDK_DIR}/media/isp/release_camera_engine_rkaiq_rv1106_arm-rockchip830-linux-uclibcgnueabihf/include/rkaiq \
 	-I${SDK_DIR}/media/isp/release_camera_engine_rkaiq_rv1106_arm-rockchip830-linux-uclibcgnueabihf/include/rkaiq/iq_parser \
-	-I$(SDK_DIR)/sysdrv/tools/board/toolkits/zlib/out/include
+	-I$(SDK_DIR)/sysdrv/tools/board/toolkits/zlib/out/include \
+	-I$(SDK_DIR)/sysdrv/tools/board/toolkits/openssl/out3/include
 
 CFLAGS+=${C_INCLUDES}
 
-LDFLAGS+= \
+LDFLAGS+=  -lstdc++ \
 	-lrkaiq 		-L${SDK_DIR}/media/isp/release_camera_engine_rkaiq_rv1106_arm-rockchip830-linux-uclibcgnueabihf/lib \
 	-lrockit 		-L${SDK_DIR}/media/rockit/rockit/lib/lib32 \
 	-lrockchip_mpp 	-L${SDK_DIR}/media/mpp/release_mpp_rv1106_arm-rockchip830-linux-uclibcgnueabihf/lib \
@@ -118,11 +126,18 @@ LDFLAGS+= \
 	-lrockiva 		-L${SDK_DIR}/media/iva/iva/librockiva/rockiva-rv1106-Linux/lib \
 	-liconv 		-L$(SDK_DIR)/media/libiconv/out/lib \
 	-lfreetype 		-L$(SDK_DIR)/media/freetype/out/lib \
-	-lz 			-L$(SDK_DIR)/sysdrv/tools/board/toolkits/zlib/out/lib/
+	-lz 			-L$(SDK_DIR)/sysdrv/tools/board/toolkits/zlib/out/lib/ \
+	-lssl -lcrypto  -L$(SDK_DIR)/sysdrv/tools/board/toolkits/openssl/out3/lib/ \
+	-lliveMedia	-lUsageEnvironment -lBasicUsageEnvironment -lgroupsock -lUsageEnvironment	-Lcommon/rtsp/out/lib
 #-lwpa_client -Llib/arm-rockchip830-linux-uclibcgnueabihf/ \
+
+CPP_SOURCE+= common/rtsp/rtsp_live.cpp
 
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
+
+CPP_OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(CPP_SOURCE:.cpp=.o)))
+vpath %.cpp $(sort $(dir $(CPP_SOURCE)))
 
 all: $(BUILD_DIR)/$(TARGET) install
 
@@ -136,8 +151,11 @@ install:
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
 	$(CC) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/$(TARGET): $(OBJECTS) Makefile
-	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+$(BUILD_DIR)/%.o: %.cpp Makefile | $(BUILD_DIR) 
+	$(CPP) -c $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/$(TARGET): $(OBJECTS) $(CPP_OBJECTS) Makefile
+	$(CC) $(OBJECTS) $(CPP_OBJECTS) $(LDFLAGS) -o $@
 
 $(BUILD_DIR):
 	mkdir $@
