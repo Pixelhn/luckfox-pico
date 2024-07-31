@@ -1,0 +1,7 @@
+*.o
+*.a
+live/testProgs/*
+live/proxyServer/live555ProxyServer
+live/mediaServer/live555MediaServer
+live/hlsProxy/live555HLSProxy
+live/liveMedia/stoJF3OL
