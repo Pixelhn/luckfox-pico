@@ -15,12 +15,15 @@
 
    FramedSource* CameraMediaSubsession::createNewStreamSource(unsigned clientSessionId, unsigned& estBitrate)
    {
+
+      printf("[%s]\n\n\n\n\n\n\n", __func__);
       estBitrate = fBitRate;
       FramedSource* source = m_replicator->createStreamReplica();
-      return H264VideoStreamDiscreteFramer::createNew(envir(), source);
+      return H265VideoStreamDiscreteFramer::createNew(envir(), source);
    }
 
    RTPSink* CameraMediaSubsession::createNewRTPSink(Groupsock* rtpGroupsock, unsigned char rtpPayloadTypeIfDynamic, FramedSource* inputSource)
    {
-      return H264VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic, fSPSNAL, fSPSNALSize, fPPSNAL, fPPSNALSize);
+      printf("[%s]\n\n\n\n\n\n\n", __func__);
+      return H265VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic);//, fSPSNAL, fSPSNALSize, fPPSNAL, fPPSNALSize);
    }

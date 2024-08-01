@@ -23,6 +23,8 @@ pthread_t livre_thread_t;
 
 void *livre_thread(void * agrv)
 {
+
+    printf("start!\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     env->taskScheduler().doEventLoop(); // does not return
     return 0;
 }
@@ -123,6 +125,8 @@ int rtsp_create_chaneal_session(char *dir)
     sms->addSubsession(sub);
     rtspServer->addServerMediaSession(sms);
 
+
+    announceStream(rtspServer, sms, "hello", "hh");
     return 0;
 }
 
@@ -134,11 +138,11 @@ int rtsp_start()
 }
 
 
-int rtsp_put()
+int rtsp_put(char *buf, int len)
 {
     printf("put %p\n", source);
     if (source)
-        source->onFrame();
+        source->put_frame(buf, len);
     return 0;
 }
 

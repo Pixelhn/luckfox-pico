@@ -10,6 +10,8 @@
       ~CameraFrameSource() = default;
       void onFrame();
 
+      int put_frame(char *buf, int len);
+
    private:
       static void deliverFrameStub(void* clientData) {
          ((CameraFrameSource*)clientData)->deliverFrame();

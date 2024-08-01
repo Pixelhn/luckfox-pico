@@ -5,6 +5,7 @@
 //  All right reserved.
 //
 //***********************************************************
+#include <cstring>
 #pragma warning(disable : 4996)
 #include "CameraFrameSource.h"
 
@@ -35,14 +36,15 @@
       deliverFrame();
    };
 
+static uint8_t newFrameDataStart[1024 * 1024];
+static unsigned newFrameSize = 0;
+
    void CameraFrameSource::deliverFrame()
    {
       printf("get!\n");
       if (!isCurrentlyAwaitingData()) return; // we're not ready for the buff yet
 
-      static uint8_t* newFrameDataStart;
-      static unsigned newFrameSize = 0;
-      printf("get!\n");
+      printf("get! %d\n", fFrameSize);
       /* get the buff frame from the Encoding thread.. */
       // if (fEncoder->fetch_packet(&newFrameDataStart, &newFrameSize))
       if (1)
@@ -52,6 +54,7 @@
             if (newFrameSize > fMaxSize) {
                fFrameSize = fMaxSize;
                fNumTruncatedBytes = newFrameSize - fMaxSize;
+               printf("over! %d\n", fMaxSize);
             }
             else {
                fFrameSize = newFrameSize;
@@ -77,3 +80,14 @@
       if (fFrameSize > 0)
          FramedSource::afterGetting(this);
    };
+
+int CameraFrameSource::put_frame(char *buf, int len)
+{
+
+   if (len < 1024*1024)
+   {
+      memcpy(newFrameDataStart, buf, len);
+      fFrameSize = len;
+      onFrame();
+   }
+}

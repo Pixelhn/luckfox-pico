@@ -1,8 +1,8 @@
 #!/bin/bash
 
-make build/rkipc || exit
+make build/rkipc RK_APP_TYPE=RKIPC_RV1103 || exit
 
 
 
 sudo cp build/rkipc ~/nfs/
-sudo cp src/rv1103_ipc/rkipc-300w.ini ~/nfs
+sudo cp src/rkipc-300w.ini ~/nfs

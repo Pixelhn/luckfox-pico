@@ -10,9 +10,9 @@
 
 #include "OnDemandServerMediaSubsession.hh"
 #include "StreamReplicator.hh"
-#include "H264VideoRTPSink.hh"
-#include "H264VideoStreamFramer.hh"
-#include "H264VideoStreamDiscreteFramer.hh"
+#include "H265VideoRTPSink.hh"
+#include "H265VideoStreamFramer.hh"
+#include "H265VideoStreamDiscreteFramer.hh"
 #include "UsageEnvironment.hh"
 #include "Groupsock.hh"
 

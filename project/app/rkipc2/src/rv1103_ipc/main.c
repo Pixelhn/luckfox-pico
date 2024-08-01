@@ -12,6 +12,7 @@
 #include "storage.h"
 #include "video.h"
 #include <linux/input.h>
+#include "rtsp_live.h"
 
 #ifdef LOG_TAG
 #undef LOG_TAG
@@ -157,8 +158,13 @@ int main(int argc, char **argv)
 		rk_isp_set_image_flip(0, "flip");
 	}
 
+	rtsp_live_init();
+	rtsp_create_chaneal_session("hello");
+
 	RK_MPI_SYS_Init();
 	rk_video_init();
+
+	rtsp_start();
 
 	pthread_create(&key_chk, NULL, wait_key_event, NULL);
 
