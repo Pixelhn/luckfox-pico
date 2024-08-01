@@ -6,6 +6,8 @@
 #include "BasicUsageEnvironment.hh"
 #include "rtsp_live.h"
 #include <GroupsockHelper.hh>
+#include "CameraFrameSource.h"
+#include "CameraMediaSubsession.h"
 
 // #define ACCESS_CONTROL
 
@@ -87,20 +89,56 @@ int rtsp_live_init()
         return -1;
     }
 
-    char const* descriptionString = "Session streamed by \"testOnDemandRTSPServer\"";
-    char const* streamName = "h265ESVideoTest";
-    char const* inputFileName = "/mnt/nfs/test.265";
-    ServerMediaSession* sms = ServerMediaSession::createNew(*env, streamName, streamName, descriptionString);
+    // char const* descriptionString = "Session streamed by \"testOnDemandRTSPServer\"";
+    // char const* streamName = "h265ESVideoTest";
+    // char const* inputFileName = "/mnt/nfs/test.265";
+    // ServerMediaSession* rtsp_main = ServerMediaSession::createNew(*env, streamName, streamName, descriptionString);
 
-    OutPacketBuffer::maxSize = 300000;
-    sms->addSubsession(H265VideoFileServerMediaSubsession::createNew(*env, inputFileName, reuseFirstSource));
+    // OutPacketBuffer::maxSize = 300000;
+    // rtsp_main->addSubsession(H265VideoFileServerMediaSubsession::createNew(*env, inputFileName, reuseFirstSource));
 
-    rtspServer->addServerMediaSession(sms);
-    announceStream(rtspServer, sms, streamName, inputFileName);
+    // rtspServer->addServerMediaSession(rtsp_main);
+    // announceStream(rtspServer, rtsp_main, streamName, inputFileName);
 
-    pthread_create(&livre_thread_t, NULL, livre_thread, NULL);
 
     printf("[%s] init finish\n\n\n\n\n", __func__);
+    return 0;
+}
+
+ CameraFrameSource* source;
+
+int rtsp_create_chaneal_session(char *dir)
+{
+
+    ServerMediaSession* sms = NULL;
+    sms = ServerMediaSession::createNew(*env, "hello");
+
+
+    source = CameraFrameSource::createNew(*env);
+    StreamReplicator *videoReplicator  = StreamReplicator::createNew(*env, source, false);;
+
+    ServerMediaSubsession *sub = CameraMediaSubsession::createNew(*env, videoReplicator);;
+
+
+    sms->addSubsession(sub);
+    rtspServer->addServerMediaSession(sms);
+
+    return 0;
+}
+
+int rtsp_start()
+{
+    pthread_create(&livre_thread_t, NULL, livre_thread, NULL);
+
+    return 0;
+}
+
+
+int rtsp_put()
+{
+    printf("put %p\n", source);
+    if (source)
+        source->onFrame();
     return 0;
 }
 
