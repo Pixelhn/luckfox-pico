@@ -18,11 +18,14 @@ h26x_source::h26x_source(UsageEnvironment & env, int (*cb_func)(unsigned char*, 
 		printf("[MEDIA SERVER] call back func is NULL, failed\n");
 		return;
     }
+
+	m_eventTriggerId = envir().taskScheduler().createEventTrigger(h26x_source::getNextFrame);
+
 }
  
 h26x_source::~h26x_source(void)
 {	
-	envir().taskScheduler().unscheduleDelayedTask(m_pToken); 
+	envir().taskScheduler().unscheduleDelayedTask(m_pToken);
 	printf("[MEDIA SERVER] rtsp connection closed\n");
 }
  

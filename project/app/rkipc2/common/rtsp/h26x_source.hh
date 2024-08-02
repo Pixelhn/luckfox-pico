@@ -25,6 +25,7 @@ public:
 private:
 	void *m_pToken;
 	int (*cb_ReadFrame)(unsigned char *pbuff, unsigned int *len);
+	EventTriggerId m_eventTriggerId;
 };
  
 #endif
