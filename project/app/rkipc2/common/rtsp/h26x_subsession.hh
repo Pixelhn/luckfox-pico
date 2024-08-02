@@ -5,20 +5,20 @@
 #include "GroupsockHelper.hh"
  
 #include "OnDemandServerMediaSubsession.hh"
-#include "H264LiveSource.hh"
+#include "h26x_source.hh"
  
-class H264VideoLiveServerMediaSubsession : public OnDemandServerMediaSubsession
+class h26x_subsession : public OnDemandServerMediaSubsession
 {
 public:
-	H264VideoLiveServerMediaSubsession(UsageEnvironment & env, FramedSource * source, int (*cb_func)(unsigned char*, unsigned int*));
-	~H264VideoLiveServerMediaSubsession(void);
+	h26x_subsession(UsageEnvironment & env, FramedSource * source, int (*cb_func)(unsigned char*, unsigned int*));
+	~h26x_subsession(void);
  
 public:
 	virtual char const * getAuxSDPLine(RTPSink * rtpSink, FramedSource * inputSource);
 	virtual FramedSource * createNewStreamSource(unsigned clientSessionId, unsigned & estBitrate); // "estBitrate" is the stream's estimated bitrate, in kbps
 	virtual RTPSink * createNewRTPSink(Groupsock * rtpGroupsock, unsigned char rtpPayloadTypeIfDynamic, FramedSource * inputSource);
  
-	static H264VideoLiveServerMediaSubsession * createNew(UsageEnvironment & env, FramedSource * source, int (*cb_func)(unsigned char*, unsigned int*));
+	static h26x_subsession * createNew(UsageEnvironment & env, FramedSource * source, int (*cb_func)(unsigned char*, unsigned int*));
  
 	static void afterPlayingDummy(void * ptr);
  

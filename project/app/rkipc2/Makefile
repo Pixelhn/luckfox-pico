@@ -132,8 +132,8 @@ LDFLAGS+=  -lstdc++ \
 #-lwpa_client -Llib/arm-rockchip830-linux-uclibcgnueabihf/ \
 
 CPP_SOURCE+= common/rtsp/rtsp_live.cpp \
-	common/rtsp/H264VideoLiveServerMediaSubsession.cpp \
-	common/rtsp/H264LiveSource.cpp \
+	common/rtsp/h26x_subsession.cpp \
+	common/rtsp/h26x_source.cpp \
 	common/rtsp/frame_module.cpp
 
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))

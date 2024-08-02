@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
   RTSPServer* rtspServer = RTSPServer::createNew(*env, 322, authDB);
 #else
   // Serve regular RTSP (over a TCP connection):
-  RTSPServer* rtspServer = RTSPServer::createNew(*env, 8554, authDB);
+  RTSPServer* rtspServer = RTSPServer::createNew(*env, 8555, authDB);
 #endif
   if (rtspServer == NULL) {
     *env << "Failed to create RTSP server: " << env->getResultMsg() << "\n";

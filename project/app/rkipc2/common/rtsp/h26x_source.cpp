@@ -1,26 +1,16 @@
 
 #include <stdio.h>
-#ifdef WIN32
-#include <windows.h>
-#else
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <limits.h>
-#endif
 
-#include "H264LiveSource.hh"
- 
-#ifdef WIN32
-#define mSleep(ms)    Sleep(ms)
-#else
-#define mSleep(ms)    usleep(ms*1000)
-#endif
+#include "h26x_source.hh"
  
  
-H264LiveSource::H264LiveSource(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*)) : 
+h26x_source::h26x_source(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*)) : 
     FramedSource(env), m_pToken(0), cb_ReadFrame(cb_func)
 {
 	if(cb_func == NULL) 
@@ -30,38 +20,39 @@ H264LiveSource::H264LiveSource(UsageEnvironment & env, int (*cb_func)(unsigned c
     }
 }
  
-H264LiveSource::~H264LiveSource(void)
+h26x_source::~h26x_source(void)
 {	
 	envir().taskScheduler().unscheduleDelayedTask(m_pToken); 
 	printf("[MEDIA SERVER] rtsp connection closed\n");
 }
  
-void H264LiveSource::doGetNextFrame()
+void h26x_source::doGetNextFrame()
 {
-	// ���� fps������ȴ�ʱ��
-	double delay = 1000.0 / (FRAME_PER_SEC * 2);  // ms
-	int to_delay = delay * 1000;  // us
- 
-	m_pToken = envir().taskScheduler().scheduleDelayedTask(to_delay, getNextFrame, this);
+	printf("[%s]", __func__);
+	this->GetFrameData();
 }
  
-unsigned int H264LiveSource::maxFrameSize() const
+unsigned int h26x_source::maxFrameSize() const
 {
 	return 1024*512;
 }
  
-void H264LiveSource::getNextFrame(void * ptr)
+void h26x_source::getNextFrame(void * ptr)
 {
-	((H264LiveSource *)ptr)->GetFrameData();
+	printf("[%s]", __func__);
+	((h26x_source *)ptr)->GetFrameData();
 }
  
-void H264LiveSource::GetFrameData()
+void h26x_source::GetFrameData()
 {
+	printf("[%s]", __func__);
 	gettimeofday(&fPresentationTime, 0);
 
     // fill frame data
     if(cb_ReadFrame)
+	{
         cb_ReadFrame(fTo, &fFrameSize);
+	}
 
 	if (fFrameSize > fMaxSize)
 	{

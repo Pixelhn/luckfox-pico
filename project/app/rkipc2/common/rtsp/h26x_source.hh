@@ -9,11 +9,11 @@
  
 #define FRAME_PER_SEC 60
  
-class H264LiveSource : public FramedSource
+class h26x_source : public FramedSource
 {
 public:
-	H264LiveSource(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*));
-	~H264LiveSource(void);
+	h26x_source(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*));
+	~h26x_source(void);
  
 public:
 	virtual void doGetNextFrame();
