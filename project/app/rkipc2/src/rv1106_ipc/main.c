@@ -141,6 +141,8 @@ int main(int argc, char **argv) {
 
 
 	rtsp_live_init();
+	rtsp_create_chaneal_session("hello");
+
 
 	if (rk_param_get_int("video.source:enable_npu", 0))
 		rkipc_rockiva_init();
@@ -152,6 +154,8 @@ int main(int argc, char **argv) {
 	}
 	RK_MPI_SYS_Init();
 	rk_video_init();
+
+	rtsp_start();
 
 	pthread_create(&key_chk, NULL, wait_key_event, NULL);
 

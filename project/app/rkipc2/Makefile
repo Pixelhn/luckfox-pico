@@ -131,7 +131,10 @@ LDFLAGS+=  -lstdc++ \
 	-lliveMedia	-lUsageEnvironment -lBasicUsageEnvironment -lgroupsock -lUsageEnvironment	-Lcommon/rtsp/out/lib
 #-lwpa_client -Llib/arm-rockchip830-linux-uclibcgnueabihf/ \
 
-CPP_SOURCE+= common/rtsp/rtsp_live.cpp
+CPP_SOURCE+= common/rtsp/rtsp_live.cpp \
+	common/rtsp/H264VideoLiveServerMediaSubsession.cpp \
+	common/rtsp/H264LiveSource.cpp \
+	common/rtsp/frame_module.cpp
 
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))

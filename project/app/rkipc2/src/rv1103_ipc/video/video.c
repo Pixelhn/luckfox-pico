@@ -6,6 +6,7 @@
 #include "audio.h"
 #include "rockiva.h"
 #include <stdio.h>
+#include "rtsp_live.h"
 
 #define HAS_VO 0
 #if HAS_VO
@@ -94,6 +95,8 @@ static void *rkipc_get_venc_0(void *arg) {
 				              stFrame.pstPack->u64PTS);
 				rtsp_do_event(g_rtsplive);
 				pthread_mutex_unlock(&g_rtsp_mutex);
+
+				rtsp_put(data, stFrame.pstPack->u32Len);
 			}
 
 			// 7.release the frame
