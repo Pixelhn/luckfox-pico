@@ -1,8 +1,14 @@
 #!/bin/bash
 
-make build/rkipc || exit
+# cd common/rtsp
+
+# ./build.sh
+
+# cd -
+
+make RK_APP_TYPE=RKIPC_RV1106 build/rkipc
 
 
 
-sudo cp build/rkipc ~/nfs/
-sudo cp src/rv1103_ipc/rkipc-300w.ini ~/nfs
+sudo cp build/rkipc ~/nfs
+

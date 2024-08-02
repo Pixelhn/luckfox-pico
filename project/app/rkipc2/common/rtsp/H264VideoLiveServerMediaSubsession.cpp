@@ -23,12 +23,12 @@ H264VideoLiveServerMediaSubsession * H264VideoLiveServerMediaSubsession::createN
  
 FramedSource * H264VideoLiveServerMediaSubsession::createNewStreamSource(unsigned clientSessionId, unsigned & estBitrate)
 {
-	return H264VideoStreamFramer::createNew(envir(), new H264LiveSource(envir(), cb_ReadFrame));
+	return H265VideoStreamFramer::createNew(envir(), new H264LiveSource(envir(), cb_ReadFrame));
 }
  
 RTPSink * H264VideoLiveServerMediaSubsession::createNewRTPSink(Groupsock * rtpGroupsock, unsigned char rtpPayloadTypeIfDynamic, FramedSource * inputSource)
 {
-	return H264VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic);
+	return H265VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic);
 }
  
 char const * H264VideoLiveServerMediaSubsession::getAuxSDPLine(RTPSink * rtpSink, FramedSource * inputSource)

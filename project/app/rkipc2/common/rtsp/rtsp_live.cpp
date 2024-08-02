@@ -6,6 +6,9 @@
 #include "frame_module.h"
 // #include "video_parse.h"
 #include "rtsp_live.h"
+#include <cstdio>
+#include <cstring>
+#include <pthread.h>
 
 UsageEnvironment* env;
 
@@ -163,6 +166,9 @@ int rtsp_live_init()
     ServerMediaSession* sms
       = ServerMediaSession::createNew(*env, streamName, streamName,
 				      descriptionString);
+
+    OutPacketBuffer::maxSize = 1024 * 512;
+
     sms->addSubsession(H264VideoLiveServerMediaSubsession
 		       ::createNew(*env, H264LSrc, cb_readframe));
     rtspServer->addServerMediaSession(sms);
@@ -203,6 +209,14 @@ int rtsp_start()
 
 int rtsp_put(char *buf, int len)
 {
+    HI_VFRAME vf;
+        if(frame_queue_remain(&g_stFrmQ) <= 0) {
+            printf("WARN: frame full, reset it.\n");
+            frame_queue_reset(&g_stFrmQ);
+        }
+        memcpy(vf.vbuff, buf, len);
+        vf.vlen = len;
+        frame_queue_push(&g_stFrmQ, &vf);
     return 0;
 }
 
