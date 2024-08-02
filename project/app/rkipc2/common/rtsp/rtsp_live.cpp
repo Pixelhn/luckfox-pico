@@ -3,24 +3,26 @@
 #include "liveMedia.hh"
 #include "BasicUsageEnvironment.hh"
 #include "h26x_subsession.hh"
+#include "h26x_source.hh"
 #include "frame_module.h"
-// #include "video_parse.h"
 #include "rtsp_live.h"
 #include <cstdio>
 #include <cstring>
 #include <pthread.h>
+#include <unistd.h>
 
 UsageEnvironment* env;
 FrameQueue g_stFrmQ;
 
 int cb_readframe(unsigned char *pbuff, unsigned int *len) 
 {
-    printf("%s \n", __func__);
 
     HI_VFRAME vf;
     if(frame_queue_used(&g_stFrmQ)<= 0 )
     {
         *len = 0;
+        printf("\n");
+        usleep(40000);
     }
     else
     {
@@ -28,6 +30,8 @@ int cb_readframe(unsigned char *pbuff, unsigned int *len)
         memcpy(pbuff, vf.vbuff, vf.vlen);
         *len = vf.vlen; 
     }
+    if (*len != 0)
+        printf("%s %d-%d\n", __func__, *len, vf.vtype);
 
     return 0;
 }
@@ -93,7 +97,7 @@ int rtsp_create_chaneal_session(char *dir)
     return 0;
 }
 
-int rtsp_start()
+void *rtsp_thread(void *argv)
 {
 
     env->taskScheduler().doEventLoop(); // does not return
@@ -101,15 +105,30 @@ int rtsp_start()
     return 0;
 }
 
-int rtsp_put(char *buf, int len)
+
+int rtsp_start()
+{
+
+    pthread_t rtsp_thread_t;
+
+    pthread_create(&rtsp_thread_t, NULL, rtsp_thread, NULL);
+
+    return 0;
+}
+
+int rtsp_put(char *buf, int len, int type)
 {
     HI_VFRAME vf;
-        if(frame_queue_remain(&g_stFrmQ) <= 0) {
-            printf("WARN: frame full, reset it.\n");
-            frame_queue_reset(&g_stFrmQ);
-        }
-        memcpy(vf.vbuff, buf, len);
-        vf.vlen = len;
-        frame_queue_push(&g_stFrmQ, &vf);
+    if(frame_queue_remain(&g_stFrmQ) <= 0)
+    {
+        printf("WARN: frame full, reset it.\n");
+        frame_queue_reset(&g_stFrmQ);
+    }
+    memcpy(vf.vbuff, buf, len);
+    vf.vlen = len;
+    vf.vtype = type;
+    frame_queue_push(&g_stFrmQ, &vf);
+    printf("[%s] put %d-%d\n", __func__, len, type);
+
     return 0;
 }

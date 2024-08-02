@@ -68,6 +68,7 @@ int frame_queue_push(FrameQueue *fq, HI_VFRAME *vf)
     // push one frame.
     memcpy(fq->vf_q[fq->vf_cur]->vbuff, vf->vbuff, vf->vlen);
     fq->vf_q[fq->vf_cur]->vlen = vf->vlen;
+    fq->vf_q[fq->vf_cur]->vtype = vf->vtype;
 
     fq->vf_used++;
     fq->vf_cur = (fq->vf_cur + 1)%(fq->vf_max);
@@ -94,6 +95,7 @@ int frame_queue_pop(FrameQueue *fq, HI_VFRAME *vf)
     // pop one frame.    
     memcpy(vf->vbuff, fq->vf_q[fq->vf_index]->vbuff, fq->vf_q[fq->vf_index]->vlen);
     vf->vlen = fq->vf_q[fq->vf_index]->vlen;
+    vf->vtype = fq->vf_q[fq->vf_index]->vtype;
 
     fq->vf_used--;
     fq->vf_index = (fq->vf_index + 1)%(fq->vf_max);

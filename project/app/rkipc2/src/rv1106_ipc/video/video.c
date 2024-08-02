@@ -150,7 +150,7 @@ static void *rkipc_get_venc_0(void *arg) {
 				              stFrame.pstPack->u64PTS);
 				rtsp_do_event(g_rtsplive);
 				pthread_mutex_unlock(&g_rtsp_mutex);
-				rtsp_put(data, stFrame.pstPack->u32Len);
+				rtsp_put(data, stFrame.pstPack->u32Len, stFrame.pstPack->DataType.enH265EType);
 			}
 
 			// 7.release the frame
