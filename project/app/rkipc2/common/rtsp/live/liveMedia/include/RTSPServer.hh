@@ -184,6 +184,7 @@ public: // should be protected, but some old compilers complain otherwise
     friend class RTSPServer;
     friend class RTSPClientSession;
 
+    //rtsp请求函数
     // Make the handler functions for each command virtual, to allow subclasses to reimplement them, if necessary:
     virtual void handleCmd_OPTIONS();
         // You probably won't need to subclass/reimplement this function; reimplement "RTSPServer::allowedCommandNames()" instead.

@@ -388,6 +388,7 @@ void RTSPServer::RTSPClientConnection
   }
   strcat(urlTotalSuffix, urlSuffix);
     
+    //鉴权
   if (!authenticationOK("DESCRIBE", urlTotalSuffix, fullRequestStr)) return;
     
   // We should really check that the request contains an "Accept:" #####
@@ -418,6 +419,7 @@ void RTSPServer::RTSPClientConnection
     session->incrementReferenceCount();
 
     // Then, assemble a SDP description for this session:
+    //生成sdp内容
     sdpDescription = session->generateSDPDescription(fAddressFamily);
     if (sdpDescription == NULL) {
       // This usually means that a file name that was specified for a
@@ -717,7 +719,7 @@ void RTSPServer::RTSPClientConnection::handleRequestBytes(int newBytesRead) {
     unsigned char* ptr = &fRequestBuffer[fRequestBytesAlreadySeen];
 #ifdef DEBUG
     ptr[newBytesRead] = '\0';
-    fprintf(stderr, "RTSPClientConnection[%p]::handleRequestBytes() %s %d new bytes:%s\n",
+    fprintf(stderr, "RTSPClientConnection[%p]::handleRequestBytes() %s %d new bytes:\n{%s}\n",
 	    this, numBytesRemaining > 0 ? "processing" : "read", newBytesRead, ptr);
 #endif
     
@@ -846,8 +848,9 @@ void RTSPServer::RTSPClientConnection::handleRequestBytes(int newBytesRead) {
 #endif
 	  handleCmd_sessionNotFound();
 	} else {
+    //响应各种请求
 	  // Normal case:
-	  handleCmd_OPTIONS();
+	  handleCmd_OPTIONS();//请求获取服务器方法
 	}
       } else if (urlPreSuffix[0] == '\0' && urlSuffix[0] == '*' && urlSuffix[1] == '\0') {
 	// The special "*" URL means: an operation on the entire server.  This works only for GET_PARAMETER and SET_PARAMETER:
@@ -858,9 +861,9 @@ void RTSPServer::RTSPClientConnection::handleRequestBytes(int newBytesRead) {
 	} else {
 	  handleCmd_notSupported();
 	}
-      } else if (strcmp(cmdName, "DESCRIBE") == 0) {
+      } else if (strcmp(cmdName, "DESCRIBE") == 0) {//请求媒体描述信息
 	handleCmd_DESCRIBE(urlPreSuffix, urlSuffix, (char const*)fRequestBuffer);
-      } else if (strcmp(cmdName, "SETUP") == 0) {
+      } else if (strcmp(cmdName, "SETUP") == 0) {//请求建立媒体对话
 	Boolean areAuthenticated = True;
 
 	if (!requestIncludedSessionId) {
@@ -877,7 +880,7 @@ void RTSPServer::RTSPClientConnection::handleRequestBytes(int newBytesRead) {
 	  }
 	  strcat(urlTotalSuffix, urlSuffix);
 	  if (authenticationOK("SETUP", urlTotalSuffix, (char const*)fRequestBuffer)) {
-	    clientSession
+	    clientSession//创建新的会话
 	      = (RTSPServer::RTSPClientSession*)fOurRTSPServer.createNewClientSessionWithId();
 	  } else {
 	    areAuthenticated = False;
@@ -981,7 +984,7 @@ void RTSPServer::RTSPClientConnection::handleRequestBytes(int newBytesRead) {
     }
     
 #ifdef DEBUG
-    fprintf(stderr, "sending response: %s", fResponseBuffer);
+    fprintf(stderr, "sending response: \n{%s}", fResponseBuffer);
 #endif
     unsigned const numBytesToWrite = strlen((char*)fResponseBuffer);
     if (fOutputTLS->isNeeded) {
@@ -2029,7 +2032,7 @@ void RTSPServer::RTSPClientSession
 GenericMediaServer::ClientConnection*
 RTSPServer::createNewClientConnection(int clientSocket, struct sockaddr_storage const& clientAddr) {
   return new RTSPClientConnection(*this, clientSocket, clientAddr, fOurConnectionsUseTLS);
-}
+} //接受连接: 创建新client
 
 GenericMediaServer::ClientSession*
 RTSPServer::createNewClientSession(u_int32_t sessionId) {

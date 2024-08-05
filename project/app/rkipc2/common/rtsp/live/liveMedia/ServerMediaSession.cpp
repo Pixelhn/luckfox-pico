@@ -208,6 +208,7 @@ Boolean ServerMediaSession::isServerMediaSession() const {
   return True;
 }
 
+//生成sdp信息
 char* ServerMediaSession::generateSDPDescription(int addressFamily) {
   struct sockaddr_storage ourAddress;
   if (addressFamily == AF_INET) {
@@ -251,6 +252,7 @@ char* ServerMediaSession::generateSDPDescription(int addressFamily) {
     ServerMediaSubsession* subsession;
     for (subsession = fSubsessionsHead; subsession != NULL;
 	 subsession = subsession->fNext) {
+      //获取每个字对话的sdp信息
       char const* sdpLines = subsession->sdpLines(addressFamily);
       if (sdpLines == NULL) continue; // the media's not available
       sdpLength += strlen(sdpLines);

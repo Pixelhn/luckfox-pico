@@ -1,0 +1,358 @@
+./testOnDemandRTSPServer
+
+"h265ESVideoTest" stream, from the file "test.265"
+Play this stream using the URL "rtsp://192.168.0.115:8555/h265ESVideoTest"
+accept()ed connection from 192.168.0.108
+RTSPClientConnection[0x88e20]::handleRequestBytes() read 98 new bytes:OPTIONS rtsp://192.168.0.115:8555/h265ESVideoTest RTSP/1.0
+CSeq: 1
+User-Agent: Lavf58.76.100
+
+
+parseRTSPRequestString() succeeded, returning cmdName "OPTIONS", urlPreSuffix "", urlSuffix "h265ESVideoTest", CSeq "1", Content-Length 0, with 0 bytes following the message.
+sending response: RTSP/1.0 200 OK
+CSeq: 1
+Date: Sun, Aug 04 2024 06:06:47 GMT
+Public: OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, GET_PARAMETER, SET_PARAMETER
+
+RTSPClientConnection[0x88e20]::handleRequestBytes() read 124 new bytes:DESCRIBE rtsp://192.168.0.115:8555/h265ESVideoTest RTSP/1.0
+Accept: application/sdp
+CSeq: 2
+User-Agent: Lavf58.76.100
+
+
+parseRTSPRequestString() succeeded, returning cmdName "DESCRIBE", urlPreSuffix "", urlSuffix "h265ESVideoTest", CSeq "2", Content-Length 0, with 0 bytes following the message.
+H264or5VideoStreamParser::parse() EXCEPTION (This is normal behavior - *not* an error)
+Parsed 25-byte NAL-unit (nal_unit_type: 32 ("Video parameter set"))
+        vps_max_sub_layers_minus1: 0
+        vps_sub_layer_ordering_info_present_flag: 1
+        vps_max_layer_id: 0
+        vps_num_layer_sets_minus1: 0
+        vps_timing_info_present_flag: 0
+        vps_extension_flag: 0
+        This "Video Parameter Set" NAL unit contained no frame rate information, so we use a default frame rate of 30.000000 fps
+        Presentation time: 1722751608.521857
+25 bytes @1722751608.521857, fDurationInMicroseconds: 0 ((0*1000000)/30.000000)
+Parsed 40-byte NAL-unit (nal_unit_type: 33 ("Sequence parameter set"))
+        sps_max_sub_layers_minus1: 0
+        chroma_format_idc: 1
+        pic_width_in_luma_samples: 1280
+        pic_height_in_luma_samples: 720
+        conformance_window_flag: 1
+                conf_win_left_offset: 0
+                conf_win_right_offset: 0
+                conf_win_top_offset: 0
+                conf_win_bottom_offset: 0
+        sps_sub_layer_ordering_info_present_flag: 1
+        scaling_list_enabled_flag: 0
+        pcm_enabled_flag: 0
+        num_short_term_ref_pic_sets: 5
+                i: 0
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 2
+                num_positive_pics: 0
+                i: 1
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 1
+                num_positive_pics: 1
+                i: 2
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 1
+                num_positive_pics: 1
+                i: 3
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 1
+                num_positive_pics: 1
+                i: 4
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 1
+                num_positive_pics: 0
+        long_term_ref_pics_present_flag: 0
+        vui_parameters_present_flag: 0
+        sps_extension_flag: 0
+        This "Sequence Parameter Set" NAL unit contained no frame rate information, so we use a default frame rate of 30.000000 fps
+        Presentation time: 1722751608.521857
+40 bytes @1722751608.521857, fDurationInMicroseconds: 0 ((0*1000000)/30.000000)
+Parsed 7-byte NAL-unit (nal_unit_type: 34 ("Picture parameter set"))
+        Presentation time: 1722751608.521857
+7 bytes @1722751608.521857, fDurationInMicroseconds: 0 ((0*1000000)/30.000000)
+Parsed 27110-byte NAL-unit (nal_unit_type: 19 ("Coded slice segment of an IDR picture"))
+        Presentation time: 1722751608.521857
+*****This NAL unit ends the current access unit*****
+27110 bytes @1722751608.521857, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 13914-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751608.555190
+*****This NAL unit ends the current access unit*****
+13914 bytes @1722751608.555190, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3019-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751608.588523
+*****This NAL unit ends the current access unit*****
+3019 bytes @1722751608.588523, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+sending response: RTSP/1.0 200 OK
+CSeq: 2
+Date: Sun, Aug 04 2024 06:06:48 GMT
+Content-Base: rtsp://192.168.0.115:8555/h265ESVideoTest/
+Content-Type: application/sdp
+Content-Length: 637
+
+v=0
+o=- 1722751602315106 1 IN IP4 192.168.0.115
+s=Session streamed by "testOnDemandRTSPServer"
+i=h265ESVideoTest
+t=0 0
+a=tool:LIVE555 Streaming Media v2024.06.26
+a=type:broadcast
+a=control:*
+a=range:npt=now-
+a=x-qt-text-nam:Session streamed by "testOnDemandRTSPServer"
+a=x-qt-text-inf:h265ESVideoTest
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+b=AS:500
+a=rtpmap:96 H265/90000
+a=fmtp:96 profile-space=0;profile-id=0;tier-flag=0;level-id=0;interop-constraints=000000000000;sprop-vps=QAEMAf//AIAAAAMAAAMAAAMAAAMAALUCQA==;sprop-sps=QgEBAIAAAAMAAAMAAAMAAAMAAKACgIAtH+W1kkbQzkkktySqSfKSyA==;sprop-pps=RAHBpVgeSA==
+a=control:track1
+RTSPClientConnection[0x88e20]::handleRequestBytes() read 159 new bytes:SETUP rtsp://192.168.0.115:8555/h265ESVideoTest/track1 RTSP/1.0
+Transport: RTP/AVP/UDP;unicast;client_port=18492-18493
+CSeq: 3
+User-Agent: Lavf58.76.100
+
+
+parseRTSPRequestString() succeeded, returning cmdName "SETUP", urlPreSuffix "h265ESVideoTest", urlSuffix "track1", CSeq "3", Content-Length 0, with 0 bytes following the message.
+Client session (id "D94DE52B", stream name "???"): Liveness indication
+sending response: RTSP/1.0 200 OK
+CSeq: 3
+Date: Sun, Aug 04 2024 06:06:48 GMT
+Transport: RTP/AVP;unicast;destination=192.168.0.108;source=192.168.0.115;client_port=18492-18493;server_port=6970-6971
+Session: D94DE52B;timeout=65
+
+RTSPClientConnection[0x88e20]::handleRequestBytes() read 134 new bytes:PLAY rtsp://192.168.0.115:8555/h265ESVideoTest/ RTSP/1.0
+Range: npt=0.000-
+CSeq: 4
+User-Agent: Lavf58.76.100
+Session: D94DE52B
+
+
+parseRTSPRequestString() succeeded, returning cmdName "PLAY", urlPreSuffix "h265ESVideoTest", urlSuffix "", CSeq "4", Content-Length 0, with 0 bytes following the message.
+Client session (id "D94DE52B", stream name "h265ESVideoTest"): Liveness indication
+RTCPInstance[0x94a48]::RTCPInstance()
+schedule(1.461651->1722751610.287119)
+sending REPORT
+sending RTCP packet
+ 80c80006 481e7331 ea5998f8 d35a74c1 2635bf8d 00000000 00000000 81ca0004 481e7331 0108526f 636b6368 69700000
+H264or5VideoStreamParser::parse() EXCEPTION (This is normal behavior - *not* an error)
+sending response: RTSP/1.0 200 OK
+CSeq: 4
+Date: Sun, Aug 04 2024 06:06:48 GMT
+Range: npt=0.000-
+Session: D94DE52B
+RTP-Info: url=rtsp://192.168.0.115:8555/h265ESVideoTest/track1;seq=2825;rtptime=641056730
+
+Parsed 25-byte NAL-unit (nal_unit_type: 32 ("Video parameter set"))
+        vps_max_sub_layers_minus1: 0
+        vps_sub_layer_ordering_info_present_flag: 1
+        vps_max_layer_id: 0
+        vps_num_layer_sets_minus1: 0
+        vps_timing_info_present_flag: 0
+        vps_extension_flag: 0
+        This "Video Parameter Set" NAL unit contained no frame rate information, so we use a default frame rate of 30.000000 fps
+        Presentation time: 1722751608.843571
+25 bytes @1722751608.843571, fDurationInMicroseconds: 0 ((0*1000000)/30.000000)
+[0x94a48]saw incoming RTCP packet (from address 192.168.0.108, port 18493)
+ 80c90001 00000000
+RR
+Client session (id "D94DE52B", stream name "h265ESVideoTest"): Liveness indication
+validated RTCP subpacket: rc:0, pt:201, bytes remaining:0, report sender SSRC:0x00000000
+validated entire RTCP packet
+Parsed 40-byte NAL-unit (nal_unit_type: 33 ("Sequence parameter set"))
+        sps_max_sub_layers_minus1: 0
+        chroma_format_idc: 1
+        pic_width_in_luma_samples: 1280
+        pic_height_in_luma_samples: 720
+        conformance_window_flag: 1
+                conf_win_left_offset: 0
+                conf_win_right_offset: 0
+                conf_win_top_offset: 0
+                conf_win_bottom_offset: 0
+        sps_sub_layer_ordering_info_present_flag: 1
+        scaling_list_enabled_flag: 0
+        pcm_enabled_flag: 0
+        num_short_term_ref_pic_sets: 5
+                i: 0
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 2
+                num_positive_pics: 0
+                i: 1
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 1
+                num_positive_pics: 1
+                i: 2
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 1
+                num_positive_pics: 1
+                i: 3
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 1
+                num_positive_pics: 1
+                i: 4
+                inter_ref_pic_set_prediction_flag: 0
+                num_negative_pics: 1
+                num_positive_pics: 0
+        long_term_ref_pics_present_flag: 0
+        vui_parameters_present_flag: 0
+        sps_extension_flag: 0
+        This "Sequence Parameter Set" NAL unit contained no frame rate information, so we use a default frame rate of 30.000000 fps
+        Presentation time: 1722751608.843571
+40 bytes @1722751608.843571, fDurationInMicroseconds: 0 ((0*1000000)/30.000000)
+Parsed 7-byte NAL-unit (nal_unit_type: 34 ("Picture parameter set"))
+        Presentation time: 1722751608.843571
+7 bytes @1722751608.843571, fDurationInMicroseconds: 0 ((0*1000000)/30.000000)
+Parsed 27110-byte NAL-unit (nal_unit_type: 19 ("Coded slice segment of an IDR picture"))
+        Presentation time: 1722751608.843571
+*****This NAL unit ends the current access unit*****
+27110 bytes @1722751608.843571, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 13914-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751608.876904
+*****This NAL unit ends the current access unit*****
+13914 bytes @1722751608.876904, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3019-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751608.910237
+*****This NAL unit ends the current access unit*****
+3019 bytes @1722751608.910237, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3871-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751608.943570
+*****This NAL unit ends the current access unit*****
+3871 bytes @1722751608.943570, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3423-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751608.976903
+*****This NAL unit ends the current access unit*****
+3423 bytes @1722751608.976903, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 16014-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.010236
+*****This NAL unit ends the current access unit*****
+16014 bytes @1722751609.010236, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3851-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.043569
+*****This NAL unit ends the current access unit*****
+3851 bytes @1722751609.043569, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4664-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.076902
+*****This NAL unit ends the current access unit*****
+4664 bytes @1722751609.076902, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3865-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.110235
+*****This NAL unit ends the current access unit*****
+3865 bytes @1722751609.110235, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 15123-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.143568
+*****This NAL unit ends the current access unit*****
+15123 bytes @1722751609.143568, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4163-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.176901
+*****This NAL unit ends the current access unit*****
+4163 bytes @1722751609.176901, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4855-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.210234
+*****This NAL unit ends the current access unit*****
+4855 bytes @1722751609.210234, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4201-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.243567
+*****This NAL unit ends the current access unit*****
+4201 bytes @1722751609.243567, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 14678-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.276900
+*****This NAL unit ends the current access unit*****
+14678 bytes @1722751609.276900, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3723-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.310233
+*****This NAL unit ends the current access unit*****
+3723 bytes @1722751609.310233, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4292-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.343566
+*****This NAL unit ends the current access unit*****
+4292 bytes @1722751609.343566, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3446-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.376899
+*****This NAL unit ends the current access unit*****
+3446 bytes @1722751609.376899, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 17016-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.410232
+*****This NAL unit ends the current access unit*****
+17016 bytes @1722751609.410232, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3366-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.443565
+*****This NAL unit ends the current access unit*****
+3366 bytes @1722751609.443565, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4015-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.476898
+*****This NAL unit ends the current access unit*****
+4015 bytes @1722751609.476898, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3562-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.510231
+*****This NAL unit ends the current access unit*****
+3562 bytes @1722751609.510231, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 15719-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.543564
+*****This NAL unit ends the current access unit*****
+15719 bytes @1722751609.543564, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3492-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.576897
+*****This NAL unit ends the current access unit*****
+3492 bytes @1722751609.576897, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4175-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.610230
+*****This NAL unit ends the current access unit*****
+4175 bytes @1722751609.610230, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3547-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.643563
+*****This NAL unit ends the current access unit*****
+3547 bytes @1722751609.643563, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 14787-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.676896
+*****This NAL unit ends the current access unit*****
+14787 bytes @1722751609.676896, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3473-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.710229
+*****This NAL unit ends the current access unit*****
+3473 bytes @1722751609.710229, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4132-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.743562
+*****This NAL unit ends the current access unit*****
+4132 bytes @1722751609.743562, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3723-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.776895
+*****This NAL unit ends the current access unit*****
+3723 bytes @1722751609.776895, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 26317-byte NAL-unit (nal_unit_type: 19 ("Coded slice segment of an IDR picture"))
+        Presentation time: 1722751609.810228
+*****This NAL unit ends the current access unit*****
+26317 bytes @1722751609.810228, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 6480-byte NAL-unit (nal_unit_type: 6 ("Coded slice segment of a RADL picture"))
+        Presentation time: 1722751609.843561
+*****This NAL unit ends the current access unit*****
+6480 bytes @1722751609.843561, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 5421-byte NAL-unit (nal_unit_type: 6 ("Coded slice segment of a RADL picture"))
+        Presentation time: 1722751609.876894
+*****This NAL unit ends the current access unit*****
+5421 bytes @1722751609.876894, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3748-byte NAL-unit (nal_unit_type: 6 ("Coded slice segment of a RADL picture"))
+        Presentation time: 1722751609.910227
+*****This NAL unit ends the current access unit*****
+3748 bytes @1722751609.910227, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 13592-byte NAL-unit (nal_unit_type: 1 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.943560
+*****This NAL unit ends the current access unit*****
+13592 bytes @1722751609.943560, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3564-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751609.976893
+*****This NAL unit ends the current access unit*****
+3564 bytes @1722751609.976893, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 4076-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751610.010226
+*****This NAL unit ends the current access unit*****
+4076 bytes @1722751610.010226, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+Parsed 3418-byte NAL-unit (nal_unit_type: 0 ("Coded slice segment of a non-TSA, non-STSA trailing picture"))
+        Presentation time: 1722751610.043559
+*****This NAL unit ends the current access unit*****
+3418 bytes @1722751610.043559, fDurationInMicroseconds: 33333 ((1*1000000)/30.000000)
+^C
+root@Rockchip:/mnt/nfs#

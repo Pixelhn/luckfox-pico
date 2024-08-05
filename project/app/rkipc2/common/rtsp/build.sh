@@ -15,7 +15,7 @@ make C_COMPILER=arm-rockchip830-linux-uclibcgnueabihf-gcc \
     LIBRARY_LINK="arm-rockchip830-linux-uclibcgnueabihf-ar cr " \
     INCLUDES="-Iinclude -I${LIVE_DIR}/UsageEnvironment/include -I${LIVE_DIR}/groupsock/include -I${LIVE_DIR}/liveMedia/include -I${LIVE_DIR}/BasicUsageEnvironment/include \
     -I${SDK_DIR}/sysdrv/tools/board/toolkits/openssl/out3/include \
-    -DLOCALE_NOT_USED" \
+    -DLOCALE_NOT_USED -DDEBUG" \
     LDFLAGS="-L${SDK_DIR}/sysdrv/tools/board/toolkits/openssl/out3/lib " \
     -j8 || exit
 

@@ -243,11 +243,11 @@ void GenericMediaServer::incomingConnectionHandlerOnSocket(int serverSocket) {
   increaseSendBufferTo(envir(), clientSocket, 50*1024);
   
 #ifdef DEBUG
-  envir() << "accept()ed connection from " << AddressString(clientAddr).val() << "\n";
+  envir() << "\n\n\n\n\n\naccept()ed connection from " << AddressString(clientAddr).val() << "\n";
 #endif
   
   // Create a new object for handling this connection:
-  (void)createNewClientConnection(clientSocket, clientAddr);
+  (void)createNewClientConnection(clientSocket, clientAddr); //接受连接
 }
 
 void GenericMediaServer
@@ -278,6 +278,7 @@ GenericMediaServer::ClientConnection
     fTLS.tlsAcceptIsNeeded = True; // call fTLS.accept() the next time the socket is readable
   }
 
+  //处理连接
   // Arrange to handle incoming requests:
   resetRequestBuffer();
   envir().taskScheduler()
@@ -320,6 +321,7 @@ void GenericMediaServer::ClientConnection::incomingRequestHandler() {
   
     bytesRead = readSocket(envir(), fOurSocket, &fRequestBuffer[fRequestBytesAlreadySeen], fRequestBufferBytesLeft, dummy);
   }
+  //处理内容
   handleRequestBytes(bytesRead);
 }
 

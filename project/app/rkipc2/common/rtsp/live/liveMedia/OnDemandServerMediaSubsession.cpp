@@ -65,6 +65,7 @@ OnDemandServerMediaSubsession::sdpLines(int addressFamily) {
     // dummy (unused) source and "RTPSink" objects,
     // whose parameters we use for the SDP lines:
     unsigned estBitrate;
+    //创建会话获取帧数据，来生成sdp信息
     FramedSource* inputSource = createNewStreamSource(0, estBitrate);
     if (inputSource == NULL) return NULL; // file not found
 
