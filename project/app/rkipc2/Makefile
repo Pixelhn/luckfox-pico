@@ -133,8 +133,7 @@ LDFLAGS+=  -lstdc++ \
 
 CPP_SOURCE+= common/rtsp/rtsp_live.cpp \
 	common/rtsp/h26x_subsession.cpp \
-	common/rtsp/h26x_source.cpp \
-	common/rtsp/frame_module.cpp
+	common/rtsp/h26x_source.cpp
 
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))

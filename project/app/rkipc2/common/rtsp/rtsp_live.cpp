@@ -4,35 +4,56 @@
 #include "BasicUsageEnvironment.hh"
 #include "h26x_subsession.hh"
 #include "h26x_source.hh"
-#include "frame_module.h"
 #include "rtsp_live.h"
 #include <cstdio>
 #include <cstring>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/time.h> 
 
 UsageEnvironment* env;
 RTSPServer* rtspServer;
-FrameQueue g_stFrmQ;
+
+pthread_mutex_t g_frame_buf_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t g_frame_buf_cond = PTHREAD_COND_INITIALIZER;
+char g_buf[300 * 1024];
+unsigned int g_len;
+int g_frame_bufstatus = 0;
+int fps;
+int total;
+struct timeval last;
 
 int cb_readframe(unsigned char *pbuff, unsigned int *len) 
 {
+    struct timeval tv;
+    static int fps_count = 0;
+    static int total_size = 0;
 
-    HI_VFRAME vf;
-    if(frame_queue_used(&g_stFrmQ)<= 0 )
+    pthread_mutex_lock(&g_frame_buf_mutex);
+    g_frame_bufstatus = 1;
+    gettimeofday(&tv, NULL);
+    printf("wait!  %ld-%ld\n", tv.tv_sec, tv.tv_usec);
+
+    pthread_cond_wait(&g_frame_buf_cond, &g_frame_buf_mutex);   
+    gettimeofday(&tv, NULL);
+    printf("get!  %ld-%ld    fps %d  %d-%d\n\n\n\n\n\n\n", tv.tv_sec, tv.tv_usec, fps, total, total/1024);
+
+    memcpy(pbuff, g_buf, g_len);
+    *len = g_len;
+
+    pthread_mutex_unlock(&g_frame_buf_mutex);
+    
+    if (tv.tv_sec != last.tv_sec)
     {
-        *len = 0;
-        printf("\n");
-        usleep(40000);
+        last = tv;
+        fps = fps_count;
+        total = total_size;
+        fps_count = 0;
+        total_size  =0;
     }
-    else
-    {
-        frame_queue_pop(&g_stFrmQ, &vf);
-        memcpy(pbuff, vf.vbuff, vf.vlen);
-        *len = vf.vlen; 
-    }
-    if (*len != 0)
-        printf("%s %d-%d\n", __func__, *len, vf.vtype);
+
+    fps_count++;
+    total_size += g_len;
 
     return 0;
 }
@@ -59,8 +80,6 @@ int rtsp_live_init()
       *env << "Failed to create RTSP server: " << env->getResultMsg() << "\n";
       exit(1);
     }
-
-    frame_queue_init(&g_stFrmQ, 20);
 
     printf("\n\n\n\n\n\n\n\n\n");
     return 0; // only to prevent compiler warning
@@ -103,17 +122,25 @@ int rtsp_start()
 
 int rtsp_put(char *buf, int len, int type)
 {
-    HI_VFRAME vf;
-    if(frame_queue_remain(&g_stFrmQ) <= 0)
+    struct timeval tv;
+    pthread_mutex_lock(&g_frame_buf_mutex);
+    do
     {
-        printf("WARN: frame full, reset it.\n");
-        frame_queue_reset(&g_stFrmQ);
+        if (g_frame_bufstatus == 0)
+            break;
+
+        memcpy(g_buf, buf, len);
+        g_len = len;
+
+        gettimeofday(&tv, NULL);
+        printf("send  %ld-%ld\n", tv.tv_sec, tv.tv_usec);
+
+        pthread_cond_broadcast(&g_frame_buf_cond);
+        g_frame_bufstatus = 0;
+
     }
-    memcpy(vf.vbuff, buf, len);
-    vf.vlen = len;
-    vf.vtype = type;
-    frame_queue_push(&g_stFrmQ, &vf);
-    printf("[%s] put %d-%d\n", __func__, len, type);
+    while (0);
+    pthread_mutex_unlock(&g_frame_buf_mutex);
 
     return 0;
 }
