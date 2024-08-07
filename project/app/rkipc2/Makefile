@@ -56,6 +56,7 @@ C_SOURCES +=  common/common.c \
 	common/param/iniparser.c \
 	common/param/dictionary.c \
 	common/rockiva/rockiva.c \
+	common/rtsp/ring_buffer.c \
 #	common/storage/storage.c \
 	common/network/network.c \
 	common/network/Rk_wifi.c \

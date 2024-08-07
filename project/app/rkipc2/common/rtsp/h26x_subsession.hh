@@ -10,11 +10,11 @@
 class h26x_subsession : public OnDemandServerMediaSubsession
 {
 public:
-	h26x_subsession(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*));
+	h26x_subsession(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*, struct timeval *));
 	~h26x_subsession(void);
  
 public:
-	static h26x_subsession * createNew(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*));
+	static h26x_subsession * createNew(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*, struct timeval *));
 
 	virtual FramedSource * createNewStreamSource(unsigned clientSessionId, unsigned & estBitrate); // "estBitrate" is the stream's estimated bitrate, in kbps
 	virtual RTPSink * createNewRTPSink(Groupsock * rtpGroupsock, unsigned char rtpPayloadTypeIfDynamic, FramedSource * inputSource);
@@ -25,6 +25,6 @@ private:
 	char * m_pSDPLine;
 	RTPSink * m_pDummyRTPSink;
 	// char m_done;
-	int (*cb_ReadFrame)(unsigned char *pbuff, unsigned int *len);
+	int (*cb_ReadFrame)(unsigned char *pbuff, unsigned int *len, struct timeval *fPresentationTime);
 };
 

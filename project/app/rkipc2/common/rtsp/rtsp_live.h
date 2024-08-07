@@ -12,6 +12,10 @@ int rtsp_start();
 
 int rtsp_put(char *buf, int len, int type);
 
+int rtsp_stop();
+
+int rtsp_begin();
+
 #ifdef __cplusplus
 }
 #endif

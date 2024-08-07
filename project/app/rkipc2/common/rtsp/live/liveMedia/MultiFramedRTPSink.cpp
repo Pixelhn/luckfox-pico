@@ -156,7 +156,9 @@ void MultiFramedRTPSink::setFramePadding(unsigned numPaddingBytes) {
 Boolean MultiFramedRTPSink::continuePlaying() {
   // Send the first packet.
   // (This will also schedule any future sends.)
+  printf("start stream!\n\n\n\n\n\n\n\n\n\n\n");
   buildAndSendPacket(True);
+  printf("next step!\n\n\n\n\n\n\n\n\n\n\n");
   return True;
 }
 

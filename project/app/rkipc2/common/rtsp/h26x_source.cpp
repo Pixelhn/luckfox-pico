@@ -8,9 +8,10 @@
 #include <limits.h>
 
 #include "h26x_source.hh"
+#include "rtsp_live.h"
  
  
-h26x_source::h26x_source(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*)) : 
+h26x_source::h26x_source(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*, struct timeval *)) : 
     FramedSource(env), m_pToken(0), cb_ReadFrame(cb_func)
 {
 	if(cb_func == NULL) 
@@ -19,14 +20,15 @@ h26x_source::h26x_source(UsageEnvironment & env, int (*cb_func)(unsigned char*, 
 		return;
     }
 
-	m_eventTriggerId = envir().taskScheduler().createEventTrigger(h26x_source::getNextFrame);
-
+	// m_eventTriggerId = envir().taskScheduler().createEventTrigger(h26x_source::getNextFrame);
+	rtsp_begin();
 }
  
 h26x_source::~h26x_source(void)
 {	
-	envir().taskScheduler().unscheduleDelayedTask(m_pToken);
+	// envir().taskScheduler().unscheduleDelayedTask(m_pToken);
 	printf("[MEDIA SERVER] rtsp connection closed\n");
+	rtsp_stop();
 }
  
 void h26x_source::doGetNextFrame()
@@ -49,12 +51,11 @@ void h26x_source::getNextFrame(void * ptr)
 void h26x_source::GetFrameData()
 {
 	printf("[%s]", __func__);
-	gettimeofday(&fPresentationTime, 0);
 
     // fill frame data
     if(cb_ReadFrame)
 	{
-        cb_ReadFrame(fTo, &fFrameSize);
+        cb_ReadFrame(fTo, &fFrameSize, &fPresentationTime);
 	}
 
 	if (fFrameSize > fMaxSize)

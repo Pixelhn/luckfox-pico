@@ -9,38 +9,55 @@
 #include <cstring>
 #include <pthread.h>
 #include <unistd.h>
-#include <sys/time.h> 
+#include <sys/time.h>
+#include <ring_buffer.h>
+
+#ifdef __cplusplus
+// Link with C way
+extern "C" {
+#endif
 
 UsageEnvironment* env;
 RTSPServer* rtspServer;
 
 pthread_mutex_t g_frame_buf_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t g_frame_buf_cond = PTHREAD_COND_INITIALIZER;
-char g_buf[300 * 1024];
-unsigned int g_len;
 int g_frame_bufstatus = 0;
 int fps;
 int total;
 struct timeval last;
 
-int cb_readframe(unsigned char *pbuff, unsigned int *len) 
+int rtsp_statue = 0;
+
+int cb_readframe(unsigned char *pbuff, unsigned int *len, struct timeval *fPresentationTime) 
 {
     struct timeval tv;
     static int fps_count = 0;
     static int total_size = 0;
 
     pthread_mutex_lock(&g_frame_buf_mutex);
-    g_frame_bufstatus = 1;
-    gettimeofday(&tv, NULL);
-    printf("wait!  %ld-%ld\n", tv.tv_sec, tv.tv_usec);
+    rtsp_statue = 1;
+    do
+    {
+        struct r_buf *p = ring_buffer_fifo_out();
+        if (p != NULL)
+        {
+            memcpy(pbuff, p->data, p->data_len);
+            *len = p->data_len;
+            *fPresentationTime = p->tv;
+            printf("get!  %ld-%ld    fps %d  %d-%d\n\n\n\n\n\n\n", p->tv.tv_sec, p->tv.tv_usec, fps, total, total/1024);
+            ring_buffer_fifo_out_finish(p);
+            break;
+        }
 
-    pthread_cond_wait(&g_frame_buf_cond, &g_frame_buf_mutex);   
-    gettimeofday(&tv, NULL);
-    printf("get!  %ld-%ld    fps %d  %d-%d\n\n\n\n\n\n\n", tv.tv_sec, tv.tv_usec, fps, total, total/1024);
+        gettimeofday(&tv, NULL);
+        printf("wait!  %ld-%ld\n", tv.tv_sec, tv.tv_usec);
 
-    memcpy(pbuff, g_buf, g_len);
-    *len = g_len;
-
+        g_frame_bufstatus = 1;
+        pthread_cond_wait(&g_frame_buf_cond, &g_frame_buf_mutex);   
+        g_frame_bufstatus = 0;
+    }
+    while (1);
     pthread_mutex_unlock(&g_frame_buf_mutex);
     
     if (tv.tv_sec != last.tv_sec)
@@ -53,7 +70,40 @@ int cb_readframe(unsigned char *pbuff, unsigned int *len)
     }
 
     fps_count++;
-    total_size += g_len;
+    total_size += *len;
+
+    return 0;
+}
+
+int rtsp_begin()
+{
+    pthread_mutex_lock(&g_frame_buf_mutex);
+    rtsp_statue = 1;
+    pthread_mutex_unlock(&g_frame_buf_mutex);
+
+    printf("[%s] starttttttttttttttttttttttttttttttttttt\n\n\n\n\n\n\n\n\n\n\n", __func__);
+}
+
+
+int rtsp_stop()
+{
+    pthread_mutex_lock(&g_frame_buf_mutex);
+    rtsp_statue = 0;
+    for (;;)
+    {
+        struct r_buf *p = ring_buffer_fifo_out();
+        if (p  != NULL)
+        {
+            ring_buffer_fifo_out_finish(p);
+        }
+        else
+        {
+            printf("no more\n");
+            break;
+        }
+    }
+
+    pthread_mutex_unlock(&g_frame_buf_mutex);
 
     return 0;
 }
@@ -126,17 +176,15 @@ int rtsp_put(char *buf, int len, int type)
     pthread_mutex_lock(&g_frame_buf_mutex);
     do
     {
-        if (g_frame_bufstatus == 0)
+        if (rtsp_statue == 0)
             break;
 
-        memcpy(g_buf, buf, len);
-        g_len = len;
-
+        ring_buffer_fifo_in(buf, len);
         gettimeofday(&tv, NULL);
-        printf("send  %ld-%ld\n", tv.tv_sec, tv.tv_usec);
+        printf("send  %ld-%ld-%d\n", tv.tv_sec, tv.tv_usec, len);
 
-        pthread_cond_broadcast(&g_frame_buf_cond);
-        g_frame_bufstatus = 0;
+        if (g_frame_bufstatus == 1)
+            pthread_cond_broadcast(&g_frame_buf_cond);
 
     }
     while (0);
@@ -144,3 +192,6 @@ int rtsp_put(char *buf, int len, int type)
 
     return 0;
 }
+#ifdef __cplusplus
+    }
+#endif

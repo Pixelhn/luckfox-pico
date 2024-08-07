@@ -1,6 +1,6 @@
 #include "h26x_subsession.hh"
  
-h26x_subsession::h26x_subsession(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*)) : OnDemandServerMediaSubsession(env, True)
+h26x_subsession::h26x_subsession(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*, struct timeval *)) : OnDemandServerMediaSubsession(env, True)
 {
 	// m_pSource = source;
 	m_pSDPLine = 0;
@@ -15,7 +15,7 @@ h26x_subsession::~h26x_subsession(void)
 	}
 }
  
-h26x_subsession * h26x_subsession::createNew(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*))
+h26x_subsession * h26x_subsession::createNew(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*, struct timeval *))
 {
 	return new h26x_subsession(env, cb_func);
 }

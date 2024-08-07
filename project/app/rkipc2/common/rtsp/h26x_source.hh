@@ -12,7 +12,7 @@
 class h26x_source : public FramedSource
 {
 public:
-	h26x_source(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*));
+	h26x_source(UsageEnvironment & env, int (*cb_func)(unsigned char*, unsigned int*, struct timeval *));
 	~h26x_source(void);
  
 public:
@@ -24,7 +24,7 @@ public:
  
 private:
 	void *m_pToken;
-	int (*cb_ReadFrame)(unsigned char *pbuff, unsigned int *len);
+	int (*cb_ReadFrame)(unsigned char *pbuff, unsigned int *len, struct timeval *fPresentationTime);
 	EventTriggerId m_eventTriggerId;
 };
  
