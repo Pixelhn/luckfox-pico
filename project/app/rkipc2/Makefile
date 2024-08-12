@@ -15,7 +15,7 @@ BUILD_DIR=build
 SDK_DIR=../../..
 TARGET=rkipc
 
-CFLAGS+=
+CFLAGS+= -D__LINUX__
 
 LDFLAGS+=  
 #-static
@@ -56,6 +56,12 @@ C_SOURCES +=  common/common.c \
 	common/param/iniparser.c \
 	common/param/dictionary.c \
 	common/rockiva/rockiva.c \
+	common/rtsp_demo/rtp_enc.c \
+	common/rtsp_demo/rtsp_demo.c \
+	common/rtsp_demo/stream_queue.c \
+	common/rtsp_demo/utils.c \
+	common/rtsp_demo/rtsp_msg.c
+
 #	common/storage/storage.c \
 	common/network/network.c \
 	common/network/Rk_wifi.c \
@@ -115,12 +121,12 @@ LDFLAGS+= \
 	-lrockchip_mpp 	-L${SDK_DIR}/media/mpp/release_mpp_rv1106_arm-rockchip830-linux-uclibcgnueabihf/lib \
 	-lrga 			-L${SDK_DIR}/media/rga/release_rga_rv1106_arm-rockchip830-linux-uclibcgnueabihf/lib \
 	-lrksysutils 	-L${SDK_DIR}/media/sysutils/out/lib \
-	-lrtsp -lrkmuxer -L${SDK_DIR}/media/common_algorithm/common_algorithm/misc/lib/arm-rockchip830-linux-uclibcgnueabihf \
 	-lrockiva 		-L${SDK_DIR}/media/iva/iva/librockiva/rockiva-rv1106-Linux/lib \
 	-liconv 		-L$(SDK_DIR)/media/libiconv/out/lib \
 	-lfreetype 		-L$(SDK_DIR)/media/freetype/out/lib \
 	-lz 			-L$(SDK_DIR)/sysdrv/tools/board/toolkits/zlib/out/lib/
 #-lwpa_client -Llib/arm-rockchip830-linux-uclibcgnueabihf/ \
+#-lrtsp -lrkmuxer -L${SDK_DIR}/media/common_algorithm/common_algorithm/misc/lib/arm-rockchip830-linux-uclibcgnueabihf \
 
 CPP_SOURCE+=
 

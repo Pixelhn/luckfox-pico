@@ -365,7 +365,7 @@ static void *rkipc_ivs_get_results(void *arg) {
 
 int rkipc_rtsp_init() {
 	LOG_DEBUG("start\n");
-	g_rtsplive = create_rtsp_demo(554);
+	g_rtsplive = rtsp_new_demo(554);
 	g_rtsp_session_0 = rtsp_new_session(g_rtsplive, RTSP_URL_0);
 	g_rtsp_session_1 = rtsp_new_session(g_rtsplive, RTSP_URL_1);
 	tmp_output_data_type = rk_param_get_string("video.0:output_data_type", "H.264");
