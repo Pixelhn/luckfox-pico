@@ -9,6 +9,7 @@ SHELL:=/bin/bash
 CROSS_COMPILE=arm-rockchip830-linux-uclibcgnueabihf
 CC=${CROSS_COMPILE}-gcc
 STRIP=${CROSS_COMPILE}-strip
+CPP=${CROSS_COMPILE}-g++
 
 BUILD_DIR=build
 SDK_DIR=../../..
@@ -121,8 +122,13 @@ LDFLAGS+= \
 	-lz 			-L$(SDK_DIR)/sysdrv/tools/board/toolkits/zlib/out/lib/
 #-lwpa_client -Llib/arm-rockchip830-linux-uclibcgnueabihf/ \
 
+CPP_SOURCE+=
+
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
+
+CPP_OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(CPP_SOURCE:.cpp=.o)))
+vpath %.cpp $(sort $(dir $(CPP_SOURCE)))
 
 all: $(BUILD_DIR)/$(TARGET) install
 
@@ -136,8 +142,11 @@ install:
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
 	$(CC) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/$(TARGET): $(OBJECTS) Makefile
-	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+$(BUILD_DIR)/%.o: %.cpp Makefile | $(BUILD_DIR) 
+	$(CPP) -c $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/$(TARGET): $(OBJECTS) $(CPP_OBJECTS) Makefile
+	$(CC) $(OBJECTS) $(CPP_OBJECTS) $(LDFLAGS) -o $@
 
 $(BUILD_DIR):
 	mkdir $@
