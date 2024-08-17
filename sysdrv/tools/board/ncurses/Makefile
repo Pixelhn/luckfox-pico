@@ -18,7 +18,7 @@ all:
 			./configure --prefix=${BUILD_TARGET_OUT} --host=${SYSDRV_CROSS} \
 			--without-cxx --without-cxx-binding --without-ada --without-manpages \
 			--without-progs --without-tests --with-shared; \
-			make; \
+			make -j$(SYSDRV_JOBS); \
 			make install; \
 		popd;)
 		cp -rfp $(BUILD_TARGET_OUT)/lib/libncurses.so* $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib;

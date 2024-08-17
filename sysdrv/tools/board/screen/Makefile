@@ -7,25 +7,24 @@ CURRENT_DIR := $(shell pwd)
 
 export LIB_NCURSES := $(CURRENT_DIR)/../ncurses
 
-BUILD_TARGET := ${CURRENT_DIR}/htop-3.3.0.tar.xz
-BUILD_TARGET_DIR := ${CURRENT_DIR}/htop-3.3.0
+BUILD_TARGET := ${CURRENT_DIR}/screen-4.9.1.tar.gz
+BUILD_TARGET_DIR := ${CURRENT_DIR}/screen-4.9.1
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 
 all: lib_ncurses
-	@test -f $(BUILD_TARGET_OUT)/bin/htop || ( \
+	@test -f $(BUILD_TARGET_OUT)/bin/screen || ( \
 		rm -rf ${BUILD_TARGET_DIR} ${BUILD_TARGET_OUT}; \
 		tar -xf ${BUILD_TARGET}; \
 		mkdir -p $(BUILD_TARGET_OUT); \
 		pushd $(BUILD_TARGET_DIR)/; \
-			./configure --prefix=${BUILD_TARGET_OUT} --host=${SYSDRV_CROSS} \
-			--disable-unicode \
+			./configure --prefix=${BUILD_TARGET_OUT} \
 			LDFLAGS=-L${LIB_NCURSES}/out/lib \
 			CPPFLAGS=-I${LIB_NCURSES}/out/include \
 			LIBS=-lncurses; \
-			make -j$(SYSDRV_JOBS); \
+			make CC=${SYSDRV_CROSS}-gcc -j$(SYSDRV_JOBS); \
 			make install; \
 		popd;)
-	cp -rfp $(BUILD_TARGET_OUT)/bin/htop  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin;
+	cp -rfp $(BUILD_TARGET_OUT)/bin/screen*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin;
 
 clean: distclean
 

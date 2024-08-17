@@ -10,7 +10,8 @@ tools_board-builds: \
 		board-build-e2fsprogs \
 		board-build-sysstat \
 		board-build-mtd_utils \
-		board-build-htop
+		board-build-htop \
+		board-build-screen
 	@echo "build tools board done"
 
 tools_board-clean:
@@ -25,6 +26,7 @@ tools_board-clean:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/rk_ota distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/sysstat distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/htop distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/screen distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/ncurses distclean
 
 board-build-toolkits:
@@ -85,3 +87,6 @@ endif
 
 board-build-htop:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/htop
+
+board-build-screen:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/screen
