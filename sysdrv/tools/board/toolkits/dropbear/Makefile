@@ -20,7 +20,7 @@ all: lib_zlib
 			./configure  --host=${SYSDRV_CROSS}  \
 			--prefix=${BUILD_TARGET_OUT} \
 			--with-zlib=${PKG_LIB_ZLIB}/out;  \
-			make; \
+			make -j$(SYSDRV_JOBS); \
 			make install; \
 			popd;)
 	cp -rfp $(BUILD_TARGET_OUT)/sbin/*  $(SYSDRV_DIR_OUT_ROOTFS)/sbin;
@@ -32,4 +32,3 @@ lib_zlib:
 
 distclean:
 	-rm -rf ${BUILD_TARGET_DIR} ${BUILD_TARGET_OUT}
-	$(MAKE) -C ${PKG_LIB_OPENSSL}	clean

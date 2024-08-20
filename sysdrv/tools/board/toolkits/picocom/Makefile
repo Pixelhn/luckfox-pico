@@ -24,7 +24,7 @@ all:
 	unzip ${PKG_TARBALL_PICOCOM}; \
 	mkdir -p $(CURRENT_DIR)/$(PKG_BIN); \
 	pushd $(CURRENT_DIR)/$(PKG_NAME_PICOCOM)/; \
-		make CC=${SYSDRV_CROSS}-gcc; \
+		make CC=${SYSDRV_CROSS}-gcc -j$(SYSDRV_JOBS); \
 		cp $(CURRENT_DIR)/$(PKG_NAME_PICOCOM)/picocom $(CURRENT_DIR)/$(PKG_BIN); \
 		$(SYSDRV_CROSS)-strip $(CURRENT_DIR)/$(PKG_NAME_PICOCOM)/picocom; \
 	popd; )

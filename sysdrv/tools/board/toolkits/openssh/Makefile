@@ -22,7 +22,7 @@ all: lib_openssl lib_zlib
 			--with-zlib=${PKG_LIB_ZLIB}/out  \
 			--with-ssl-dir=${PKG_LIB_OPENSSL}/out3 \
 			--disable-etc-default-login LDFLAGS="-pthread"; \
-			make -j4 ; \
+			make -j$(SYSDRV_JOBS) ; \
 			make install-nokeys DESTDIR=${BUILD_TARGET_OUT} STRIP_OPT=; \
 		popd;)
 		cp -rfp $(BUILD_TARGET_OUT)/usr/local/libexec/sftp-server  $(SYSDRV_DIR_OUT_ROOTFS)/usr/libexec;
@@ -35,4 +35,3 @@ lib_zlib:
 
 distclean:
 	-rm -rf ${BUILD_TARGET_DIR} ${BUILD_TARGET_OUT}
-	$(MAKE) -C ${PKG_LIB_OPENSSL}	clean

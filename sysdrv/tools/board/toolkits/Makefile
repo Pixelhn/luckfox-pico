@@ -62,3 +62,6 @@ distclean:
 	$(MAKE) -C $(PKG_DEP_OPENSSL) distclean
 	$(MAKE) -C $(PKG_DEP_ZLIB) distclean
 	$(MAKE) -C $(PKG_DEP_WPA_SUPPLICANT) distclean
+	${MAKE} -C ${PKG_DEP_DROPBEAR} distclean
+	$(MAKE) -C $(PKG_DEP_OPENSSH) distclean
+	$(MAKE) -C $(PKG_DEP_PICOCOM) distclean
