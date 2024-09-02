@@ -11,7 +11,8 @@ tools_board-builds: \
 		board-build-sysstat \
 		board-build-mtd_utils \
 		board-build-htop \
-		board-build-screen
+		board-build-screen \
+		board-build-tzdb
 	@echo "build tools board done"
 
 tools_board-clean:
@@ -28,6 +29,7 @@ tools_board-clean:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/htop distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/screen distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/ncurses distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tzdb distclean
 
 board-build-toolkits:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/toolkits
@@ -90,3 +92,6 @@ board-build-htop:
 
 board-build-screen:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/screen
+
+board-build-tzdb:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tzdb
