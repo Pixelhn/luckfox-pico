@@ -7,8 +7,8 @@ CURRENT_DIR := $(shell pwd)
 
 export PKG_LIB_ZLIB := $(CURRENT_DIR)/../zlib
 
-BUILD_TARGET := ${CURRENT_DIR}/dropbear-2022.83.tar.bz2
-BUILD_TARGET_DIR := ${CURRENT_DIR}/dropbear-2022.83
+BUILD_TARGET := ${CURRENT_DIR}/dropbear-2024.85.tar.bz2
+BUILD_TARGET_DIR := ${CURRENT_DIR}/dropbear-2024.85
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 
 all: lib_zlib
@@ -29,6 +29,8 @@ all: lib_zlib
 
 lib_zlib:
 	$(MAKE) -C ${PKG_LIB_ZLIB}
+
+clean:distclean
 
 distclean:
 	-rm -rf ${BUILD_TARGET_DIR} ${BUILD_TARGET_OUT}
