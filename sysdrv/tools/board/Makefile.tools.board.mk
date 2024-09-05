@@ -12,7 +12,8 @@ tools_board-builds: \
 		board-build-mtd_utils \
 		board-build-htop \
 		board-build-screen \
-		board-build-tzdb
+		board-build-tzdb \
+		board-build-tcpdump
 	@echo "build tools board done"
 
 tools_board-clean:
@@ -30,6 +31,7 @@ tools_board-clean:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/screen distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/ncurses distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tzdb distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tcpdump distclean
 
 board-build-toolkits:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/toolkits
@@ -95,3 +97,6 @@ board-build-screen:
 
 board-build-tzdb:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tzdb
+
+board-build-tcpdump:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tcpdump
