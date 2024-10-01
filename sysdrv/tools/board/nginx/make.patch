@@ -1,0 +1,13 @@
+diff -uprN nginx-1.26.2/objs/ngx_auto_config.h nginx-1.26.2_new/objs/ngx_auto_config.h
+--- nginx-1.26.2/objs/ngx_auto_config.h	2024-10-01 21:45:51.844322835 +0800
++++ nginx-1.26.2_new/objs/ngx_auto_config.h	2024-10-01 21:46:45.624311377 +0800
+@@ -4,6 +4,9 @@
+ #define NGX_COMPILER  "gcc 8.3.0 (crosstool-NG 1.24.0) "
+ #endif
+ 
++#ifndef NGX_HAVE_SYSVSHM
++#define NGX_HAVE_SYSVSHM 1
++#endif
+ 
+ #ifndef NGX_HAVE_GCC_BSWAP64
+ #define NGX_HAVE_GCC_BSWAP64  1

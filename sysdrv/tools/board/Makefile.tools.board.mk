@@ -13,7 +13,8 @@ tools_board-builds: \
 		board-build-htop \
 		board-build-screen \
 		board-build-tzdb \
-		board-build-tcpdump
+		board-build-tcpdump \
+		board-build-nginx
 	@echo "build tools board done"
 
 tools_board-clean:
@@ -32,6 +33,7 @@ tools_board-clean:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/ncurses distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tzdb distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tcpdump distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/nginx distclean
 
 board-build-toolkits:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/toolkits
@@ -100,3 +102,6 @@ board-build-tzdb:
 
 board-build-tcpdump:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tcpdump
+
+board-build-nginx:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/nginx

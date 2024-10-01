@@ -8,22 +8,33 @@ CURRENT_DIR := $(shell pwd)
 BUILD_TARGET := ${CURRENT_DIR}/nginx-1.26.2.tar.gz
 BUILD_TARGET_DIR := ${CURRENT_DIR}/nginx-1.26.2
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
+INSTALL_TARGET := ${BUILD_TARGET_OUT}/sbin/nginx
 
-LIB_OPENSSL=../toolkits/openssl/
-LIB_PRCE2=../prce2/
-LIB_ZLIB=../toolkits/zlib/
+LIB_OPENSSL=${CURRENT_DIR}/../toolkits/openssl/
+LIB_PRCE2=${CURRENT_DIR}/../prce2/
+LIB_ZLIB=${CURRENT_DIR}/../toolkits/zlib/
 
 all:lib_openssl lib_prce2 lib_zlib
-	@test -f $(BUILD_TARGET_OUT)/bin/screen || ( \
+	@test -f $(INSTALL_TARGET) || ( \
 		rm -rf ${BUILD_TARGET_DIR} ${BUILD_TARGET_OUT}; \
 		tar -xf ${BUILD_TARGET}; \
 		mkdir -p $(BUILD_TARGET_OUT); \
 		pushd $(BUILD_TARGET_DIR)/; \
-			./configure --prefix=${BUILD_TARGET_OUT}; \
+			patch -p1 < ../configure.patch;	\
+			./configure --prefix=${BUILD_TARGET_OUT} \
+			--with-http_ssl_module \
+			--with-cc=${SYSDRV_CROSS}-gcc \
+ 			--with-cpp=${SYSDRV_CROSS}-g++ \
+ 			--with-cc-opt="-I ${LIB_PRCE2}/out/include -I ${LIB_OPENSSL}/out3/include -I ${LIB_ZLIB}/out/include" \
+ 			--with-ld-opt="-L ${LIB_PRCE2}/out/lib -L ${LIB_OPENSSL}/out3/lib -L ${LIB_ZLIB}/out/lib" \
+ 			--without-http_upstream_zone_module; \
+			patch -p1 < ../make.patch; \
 			make -j$(SYSDRV_JOBS); \
 			make install; \
 		popd;)
-# cp -rfp $(BUILD_TARGET_OUT)/bin/screen*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin;
+	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
+		cp -rfp $(BUILD_TARGET_OUT)/sbin/nginx  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin; \
+	)
 
 lib_openssl:
 	make -C ${LIB_OPENSSL}
