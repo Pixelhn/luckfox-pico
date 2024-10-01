@@ -77,7 +77,9 @@ openssl3:
 			make -j$(SYSDRV_JOBS) || exit -1; \
 			make install ; \
 	popd; )
-	cp -rfp $(CURRENT_DIR)/$(PKG_BIN3)/lib/*.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib;
+	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
+		cp -rfp $(CURRENT_DIR)/$(PKG_BIN3)/lib/*.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib; \
+	)
 
 distclean:
 	-rm -rf $(PKG_BIN) $(PKG_NAME_OPENSSL) $(PKG_BIN3) $(PKG_NAME_OPENSSL3)
