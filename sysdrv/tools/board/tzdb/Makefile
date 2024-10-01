@@ -14,7 +14,7 @@ BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 all:
 	@test -f $(BUILD_TARGET_OUT)/usr/share/zoneinfo/Asia/Shanghai || ( \
 		rm -rf ${BUILD_TARGET_DIR} ${BUILD_TARGET_OUT}; \
-		tar -xf ${BUILD_TARGET}; \
+		tar -xf ${BUILD_TARGET} || exit; \
 		mkdir -p $(BUILD_TARGET_OUT); \
 		pushd $(BUILD_TARGET_DIR)/; \
 			make -j$(SYSDRV_JOBS); \
