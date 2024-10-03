@@ -11,7 +11,7 @@ BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 INSTALL_TARGET := ${BUILD_TARGET_OUT}/sbin/nginx
 
 LIB_OPENSSL=${CURRENT_DIR}/../toolkits/openssl/
-LIB_PCRE2=${CURRENT_DIR}/../prce2/
+LIB_PCRE2=${CURRENT_DIR}/../pcre2/
 LIB_ZLIB=${CURRENT_DIR}/../toolkits/zlib/
 
 all:lib_openssl lib_pcre2 lib_zlib
