@@ -34,6 +34,7 @@ tools_board-clean:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tzdb distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tcpdump distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/nginx distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/pcre2 distclean
 
 board-build-toolkits:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/toolkits
