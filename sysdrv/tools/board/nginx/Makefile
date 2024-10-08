@@ -27,15 +27,21 @@ all:lib_openssl lib_pcre2 lib_zlib
  			--with-cpp=${SYSDRV_CROSS}-g++ \
  			--with-cc-opt="-I ${LIB_PCRE2}/out/include -I ${LIB_OPENSSL}/out3/include -I ${LIB_ZLIB}/out/include" \
  			--with-ld-opt="-L ${LIB_PCRE2}/out/lib -L ${LIB_OPENSSL}/out3/lib -L ${LIB_ZLIB}/out/lib" \
- 			--without-http_upstream_zone_module \
-			--pid-path=/tmp/nginx.pid \
+ 			\
+			--without-http_upstream_zone_module \
 			--without-http_fastcgi_module \
 			--without-http_uwsgi_module \
 			--without-http_scgi_module \
+			\
+			--with-http_gzip_static_module \
+			\
 			--http-proxy-temp-path=/tmp/nginx/proxy_temp \
 			--http-client-body-temp-path=/tmp/nginx/client_body_temp \
-			--error-log-path=/tmp/nginx/error.log \
+			\
 			--lock-path=/tmp/nginx/nginx.lock \
+			--pid-path=/tmp/nginx.pid \
+			\
+			--error-log-path=/tmp/nginx/error.log \
 			--http-log-path=/tmp/nginx/access.log; \
 			patch -p1 < ../make.patch; \
 			make -j$(SYSDRV_JOBS); \
