@@ -27,7 +27,16 @@ all:lib_openssl lib_pcre2 lib_zlib
  			--with-cpp=${SYSDRV_CROSS}-g++ \
  			--with-cc-opt="-I ${LIB_PCRE2}/out/include -I ${LIB_OPENSSL}/out3/include -I ${LIB_ZLIB}/out/include" \
  			--with-ld-opt="-L ${LIB_PCRE2}/out/lib -L ${LIB_OPENSSL}/out3/lib -L ${LIB_ZLIB}/out/lib" \
- 			--without-http_upstream_zone_module; \
+ 			--without-http_upstream_zone_module \
+			--pid-path=/tmp/nginx.pid \
+			--without-http_fastcgi_module \
+			--without-http_uwsgi_module \
+			--without-http_scgi_module \
+			--http-proxy-temp-path=/tmp/nginx/proxy_temp \
+			--http-client-body-temp-path=/tmp/nginx/client_body_temp \
+			--error-log-path=/tmp/nginx/error.log \
+			--lock-path=/tmp/nginx/nginx.lock \
+			--http-log-path=/tmp/nginx/access.log; \
 			patch -p1 < ../make.patch; \
 			make -j$(SYSDRV_JOBS); \
 			make install; \
@@ -49,3 +58,10 @@ clean: distclean
 
 distclean:
 	-rm -rf ${BUILD_TARGET_DIR} ${BUILD_TARGET_OUT}
+
+
+# --http-fastcgi-temp-path=/tmp/nginxx \
+# --http-proxy-temp-path=/tmp/nginxx \
+# --http-uwsgi-temp-path=/tmp/nginxx \
+# --http-client-body-temp-path=/tmp/nginxx \
+# --http-scgi-temp-path=/tmp/nginxx \
