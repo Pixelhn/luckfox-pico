@@ -49,6 +49,12 @@ all:lib_openssl lib_pcre2 lib_zlib
 		popd;)
 	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
 		cp -rfp $(BUILD_TARGET_OUT)/sbin/nginx  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin; \
+		cp -rfp $(BUILD_TARGET_OUT)/../nginx.sh  $(SYSDRV_DIR_OUT_ROOTFS)/etc/profile.d/nginx.sh; \
+		\
+		mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)/root/web/conf/;\
+		mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)/root/web/html/;\
+		cp -rfp $(BUILD_TARGET_OUT)/conf/*  $(SYSDRV_DIR_OUT_ROOTFS)/root/web/conf/; \
+		cp -rfp $(BUILD_TARGET_OUT)/html/*  $(SYSDRV_DIR_OUT_ROOTFS)/root/web/html/; \
 	)
 
 lib_openssl:

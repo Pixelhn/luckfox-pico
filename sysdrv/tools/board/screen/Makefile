@@ -24,7 +24,9 @@ all: lib_ncurses
 			make CC=${SYSDRV_CROSS}-gcc -j$(SYSDRV_JOBS); \
 			make install; \
 		popd;)
-	cp -rfp $(BUILD_TARGET_OUT)/bin/screen*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin;
+	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
+		cp -rfp $(BUILD_TARGET_OUT)/bin/screen*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin; \
+	)
 
 clean: distclean
 

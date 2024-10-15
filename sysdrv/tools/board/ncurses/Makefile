@@ -21,7 +21,9 @@ all:
 			make -j$(SYSDRV_JOBS); \
 			make install; \
 		popd;)
-		cp -rfp $(BUILD_TARGET_OUT)/lib/libncurses.so* $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib;
+	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
+		cp -rfp $(BUILD_TARGET_OUT)/lib/libncurses.so* $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib; \
+	)
 
 clean: distclean
 
