@@ -24,12 +24,12 @@ UBI_FS_COMP=${6}
 # parameter.txt is option
 PARAMETER=$7
 
-MKUBIFS_TOOL=mkfs.ubifs
-MKUBINIZE_TOOL=ubinize
-MKSQUASHFS_TOOL=mksquashfs
+MKUBIFS_TOOL=./sbin/mkfs.ubifs
+MKUBINIZE_TOOL=./sbin/ubinize
+MKSQUASHFS_TOOL=./sbin/mksquashfs
 MKEROFS_TOOL=mkfs.erofs
 
-TEMP_UBI_CFG_DIR=$IMAGE_OUTPUT_DIR/.ubi_cfg
+TEMP_UBI_CFG_DIR=$IMAGE_OUTPUT_DIR
 ROOTFS_IMAGE_FAKEROOT_UBI=$TEMP_UBI_CFG_DIR/fakeroot-ubi-${ROOTFS_PART_NAME}.fs
 
 ################################################################################
@@ -331,8 +331,8 @@ else
 fi
 
 mk_ubi_image_fake_for_rootfs 0x20000 2048
-mk_ubi_image_fake_for_rootfs 0x40000 2048
-mk_ubi_image_fake_for_rootfs 0x40000 4096
+# mk_ubi_image_fake_for_rootfs 0x40000 2048
+# mk_ubi_image_fake_for_rootfs 0x40000 4096
 if [ "$FAKEROOT_TOOL" = "NO_FOUND" ]; then
 	msg_warn "No found fakeroot tool..."
 	$ROOTFS_IMAGE_FAKEROOT_UBI
@@ -341,9 +341,7 @@ else
 	$FAKEROOT_TOOL -- $ROOTFS_IMAGE_FAKEROOT_UBI
 fi
 
-if [ "$RK_DEBUG" != "1" ]; then
-rm -rf $TEMP_UBI_CFG_DIR
-fi
+
 msg_info "End build ubi images..."
 pop_unused_files
 

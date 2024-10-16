@@ -42,5 +42,5 @@ all:
 clean: distclean
 
 distclean:
-	-rm -rf $(PKG_NAME) $(PKG_BIN)
+	-rm -rf $(BUILD_TARGET_DIR) $(BUILD_TARGET_OUT)
 
