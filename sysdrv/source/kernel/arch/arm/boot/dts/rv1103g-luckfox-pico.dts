@@ -4,8 +4,6 @@
  */
 
 /dts-v1/;
-
-#include "rv1103.dtsi"
 #include "rv110x-luckfox-pico.dtsi"
 
 / {
