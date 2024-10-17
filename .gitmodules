@@ -1,3 +1,6 @@
 [submodule "ubuntu"]
 	path = sysdrv/tools/board/ubuntu
 	url = https://github.com/luckfox-eng33/pico_ubuntu.git
+[submodule "project/app/rkipc2/common/rtsp_demo"]
+	path = project/app/rkipc2/common/rtsp_demo
+	url = https://github.com/bxinquan/rtsp_demo
