@@ -7,7 +7,7 @@ endif
 ifneq ($(findstring $(RK_ENABLE_SAMPLE),n y),)
 CONFIG_RK_SAMPLE=$(RK_ENABLE_SAMPLE)
 else
-CONFIG_RK_SAMPLE=y
+CONFIG_RK_SAMPLE=n
 endif
 
 CURRENT_DIR := $(shell pwd)

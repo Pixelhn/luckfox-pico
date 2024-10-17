@@ -1,0 +1,4 @@
+dst/*
+sbin/*
+src/*
+dst/.ubi_cfg/*

@@ -13,8 +13,11 @@ ifeq ($(SYSDRV_ARCH_TYPE),arm)
 PKG_USE_THUMB2 ?= YES
 endif
 
-PKG_TARBALL_ZLIB := zlib-1.2.11.tar.xz
-PKG_NAME_ZLIB := zlib-1.2.11
+#PKG_TARBALL_ZLIB := zlib-1.2.11.tar.xz
+#PKG_NAME_ZLIB := zlib-1.2.11
+
+PKG_TARBALL_ZLIB := zlib-1.3.tar.gz
+PKG_NAME_ZLIB := zlib-1.3
 
 PKG_BIN := out
 
@@ -40,6 +43,9 @@ all:
 		make -j$(SYSDRV_JOBS) > /dev/null || exit -1; \
 		make install > /dev/null; \
 	popd; )
+	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
+		cp -rfp $(CURRENT_DIR)/$(PKG_BIN)/lib/libz.so*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/lib \
+	)
 
 clean: distclean
 
