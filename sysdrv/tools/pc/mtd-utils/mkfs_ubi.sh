@@ -323,7 +323,7 @@ echo "set -e" >> $ROOTFS_IMAGE_FAKEROOT_UBI
 
 if which fakeroot; then
 	FAKEROOT_TOOL="`which fakeroot`"
-	echo "chown -h -R 0:0 $ROOTFS_SRC_DIR" >> $ROOTFS_IMAGE_FAKEROOT_UBI
+	echo "chown -h -R root:root $ROOTFS_SRC_DIR" >> $ROOTFS_IMAGE_FAKEROOT_UBI
 else
 	msg_warn "Install fakeroot First."
 	msg_warn "   sudo apt-get install fakeroot"

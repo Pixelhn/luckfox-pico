@@ -280,6 +280,7 @@ BUSYBOX_CFG := config_tiny_arm
 endif
 BUSYBOX_CFG ?= config_normal
 BUSYBOX_VER ?= busybox-1.27.2
+# BUSYBOX_VER ?= busybox-1.36.1
 BUSYBOX_DIR := $(SYSDRV_DIR)/source/busybox
 SYSDRV_BUSYBOX_OBJS_OUTPUT_DIR ?= $(BUSYBOX_DIR)/objs_$(BUSYBOX_CFG)
 
@@ -522,9 +523,11 @@ kernel_clean:
 ##########################################################################################
 rootfs_prepare: prepare
 	@echo -e "$(C_GREEN) ==sysdrv== prepare rootfs   $(C_NORMAL)"
-	rm -rf $(SYSDRV_DIR_OUT_ROOTFS)
-	mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)
-	tar xf $(SYSDRV_DIR)/tools/board/rootfs_script.tar -C $(SYSDRV_DIR_OUT_ROOTFS)
+	# rm -rf $(SYSDRV_DIR_OUT_ROOTFS)
+	# mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)
+	# tar xf $(SYSDRV_DIR)/tools/board/rootfs_script.tar -C $(SYSDRV_DIR_OUT_ROOTFS)
+	cp -rfp $(SYSDRV_DIR)/tools/board/base_rootfs/* $(SYSDRV_DIR_OUT_ROOTFS)
+	find $(SYSDRV_DIR_OUT_ROOTFS) -name .gitignore | xargs rm 
 	tar xjf $(TOOLCHAIN_DIR)/$(TOOLCHAIN_RUNTIME_LIB)/$(TOOLCHAIN_RUNTIME_LIB_C) -C $(SYSDRV_DIR_OUT_ROOTFS)
 	pushd $(SYSDRV_DIR_OUT_ROOTFS)/lib/ ; mv -fv \
 		libasan_preinit.o \
@@ -572,7 +575,7 @@ else
 		$(SYSDRV_BUSYBOX_OBJS_OUTPUT_DIR)/_install)
 endif
 	# luckfox
-	cp $(SYSDRV_DIR)/tools/board/android-tools/S99usb0config $(SYSDRV_DIR_OUT_ROOTFS)/etc/init.d
+#	cp $(SYSDRV_DIR)/tools/board/android-tools/S90usb0config $(SYSDRV_DIR_OUT_ROOTFS)/etc/init.d
 	touch $(SYSDRV_DIR_OUT_ROOTFS)/userdata/.busybox
 
 busybox_clean:

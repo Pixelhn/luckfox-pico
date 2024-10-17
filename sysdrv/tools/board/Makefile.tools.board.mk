@@ -13,7 +13,12 @@ tools_board-builds: \
 		board-build-i2c_tools \
 		board-build-dosfstools \
 		board-build-exfatprogs \
-		board-build-mtd_utils
+		board-build-mtd_utils \
+		board-build-htop \
+		board-build-screen \
+		board-build-tzdb \
+		board-build-tcpdump \
+		board-build-nginx
 	@echo "build tools board done"
 
 tools_board-clean:
@@ -33,6 +38,14 @@ tools_board-clean:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/i2c-tools distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/dosfstools distclean
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/exfatprogs distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/htop distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/screen distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/ncurses distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tzdb distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tcpdump distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/nginx distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/pcre2 distclean
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/uuid distclean
 
 board-build-toolkits:
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/toolkits
@@ -108,3 +121,18 @@ board-build-exfatprogs:
 ifeq ($(ENABLE_EXFATPROGS),y)
 	$(MAKE) -C $(SYSDRV_DIR)/tools/board/exfatprogs;
 endif
+
+board-build-htop:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/htop
+
+board-build-screen:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/screen
+
+board-build-tzdb:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tzdb
+
+board-build-tcpdump:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/tcpdump
+
+board-build-nginx:
+	$(MAKE) -C $(SYSDRV_DIR)/tools/board/nginx

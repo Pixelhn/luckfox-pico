@@ -1,0 +1,24 @@
+diff -uprN nginx-1.26.2/auto/cc/name nginx-1.26.2_new/auto/cc/name
+--- nginx-1.26.2/auto/cc/name	2024-08-12 22:28:31.000000000 +0800
++++ nginx-1.26.2_new/auto/cc/name	2024-10-01 21:42:52.684364460 +0800
+@@ -7,7 +7,7 @@ if [ "$NGX_PLATFORM" != win32 ]; then
+ 
+     ngx_feature="C compiler"
+     ngx_feature_name=
+-    ngx_feature_run=yes
++    ngx_feature_run=no
+     ngx_feature_incs=
+     ngx_feature_path=
+     ngx_feature_libs=
+diff -uprN nginx-1.26.2/auto/types/sizeof nginx-1.26.2_new/auto/types/sizeof
+--- nginx-1.26.2/auto/types/sizeof	2024-08-12 22:28:31.000000000 +0800
++++ nginx-1.26.2_new/auto/types/sizeof	2024-10-01 21:43:03.704362312 +0800
+@@ -40,7 +40,7 @@ eval "$ngx_test >> $NGX_AUTOCONF_ERR 2>&
+ 
+ 
+ if [ -x $NGX_AUTOTEST ]; then
+-    ngx_size=`$NGX_AUTOTEST`
++    ngx_size=4
+     echo " $ngx_size bytes"
+ fi
+ 
