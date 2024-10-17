@@ -32,7 +32,7 @@ all:
 	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
 		pushd $(BUILD_TARGET_OUT)/sbin/; \
 		cp -vfa	\
-			flashcp flash_erase flash_eraseall flash_lock flash_unlock \
+			flashcp flash_erase flash_eraseall flash_lock flash_unlock mtdinfo \
 			nanddump nandwrite \
 			ubiattach ubiblock ubidetach ubiformat ubimkvol ubirename ubirmvol ubirsvol ubinfo \
 			$(SYSDRV_DIR_OUT_ROOTFS)/usr/bin; \

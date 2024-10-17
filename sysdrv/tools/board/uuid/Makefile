@@ -21,4 +21,4 @@ all:
 		popd;)
 
 distclean:
-	-rm -rf ${BUILD_TARGET_OUT} ${BUILD_TARGET_OUT}
+	-rm -rf ${BUILD_TARGET_OUT} ${BUILD_TARGET_DIR}
