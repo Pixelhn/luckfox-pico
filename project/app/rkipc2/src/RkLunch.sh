@@ -42,14 +42,6 @@ post_chk()
 		sleep .1
 	done
 
-	# if ko exist, install ko first
-	if [ -f "/oem/usr/ko/insmod_ko.sh" ];then
-		cd /oem/usr/ko && sh insmod_ko.sh && cd -
-	fi
-
-	if [ -f "/userdata/net.sh" ];then
-		cd /userdata && sh net.sh && cd -
-	fi
 
 	# if /data/rkipc not exist, cp /usr/share
 	rkipc_ini=/userdata/rkipc.ini

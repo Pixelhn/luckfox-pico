@@ -1511,6 +1511,15 @@ function __PACKAGE_OEM() {
 [ -f /etc/profile.d/RkEnv.sh ] && source /etc/profile.d/RkEnv.sh
 case \$1 in
 	start)
+		if [ -f "/userdata/net.sh" ];then
+			sh /userdata/net.sh &
+		fi
+
+		# if ko exist, install ko first
+		if [ -f "/oem/usr/ko/insmod_ko.sh" ];then
+			cd /oem/usr/ko && sh insmod_ko.sh && cd -
+		fi
+
 		sh /oem/usr/bin/RkLunch.sh
 		;;
 	stop)
