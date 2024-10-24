@@ -1369,7 +1369,7 @@ function __BUILD_ENABLE_COREDUMP_SCRIPT() {
 	coredump2sdcard="$RK_PROJECT_PACKAGE_ROOTFS_DIR/usr/bin/coredump2sdcard.sh"
 	cat >$coredump2sdcard <<EOF
 #!/bin/sh
-exec cat -  > "/mnt/sdcard/core-\$1-\$2"
+exec cat -  > "/mnt/nfs/1103/core/core-\$1-\$2"
 EOF
 	chmod a+x $coredump2sdcard
 
