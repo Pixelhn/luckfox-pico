@@ -26,7 +26,7 @@ all:
 	pushd $(BUILD_TARGET_DIR); \
 		export PKG_CONFIG_PATH="${PKG_CONFIG_PATH3}"; \
 		./configure --prefix=${BUILD_TARGET_OUT}  --host=${SYSDRV_CROSS} \
-		--with-zlib=${PKG_LIB_ZLIB}/out;  \
+		--with-zlib=${PKG_LIB_ZLIB}/out --with-brotli=no --with-png=no --with-harfbuzz=no;  \
 		make -j; \
 		make install; \
 	popd;)
