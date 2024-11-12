@@ -268,7 +268,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
-	// pinctrl-0 = <&i2c4m2_xfer>;
+	pinctrl-0 = <&i2c4m2_xfer>;
 
 	sc3336: sc3336@30 {
 		compatible = "smartsens,sc3336";
@@ -456,7 +456,7 @@
 	pinctrl-0 = <&i2c3m0_xfer &i2c3m1_xfer &i2c3m2_xfer &tp_rst &tp_irq>;
 };
 &i2c4 {
-	pinctrl-0 = <&i2c4m0_xfer &i2c4m1_xfer &i2c4m2_xfer>;
+	pinctrl-0 = <&i2c4m2_xfer>;
 };
 
 // UART
