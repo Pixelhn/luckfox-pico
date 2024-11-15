@@ -2620,8 +2620,8 @@ function build_firmware() {
 		if [ "$LF_TARGET_ROOTFS" = "buildroot" ]; then
 			echo buildroot
 
-			rm $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/hostname
-			rm $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/hosts
+			rm -f $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/hostname
+			rm -f $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/hosts
 			rm -rf $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/network
 
 			make buildroot -C ${SDK_SYSDRV_DIR} || exit
