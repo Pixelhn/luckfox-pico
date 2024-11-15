@@ -131,9 +131,9 @@ ifneq ($(findstring $(TARGET_ROOTFS),custom),)
 else ifneq ($(findstring $(TARGET_ROOTFS),ubuntu),)
    ROOTFS_BUILD_ENV := ubuntu drv
 else ifneq ($(findstring $(TARGET_ROOTFS),buildroot),)
-   ROOTFS_BUILD_ENV := rootfs_prepare pctools buildroot boardtools drv
+   ROOTFS_BUILD_ENV := rootfs_prepare pctools boardtools # 使用buildroot作为最终打包，其他生成物作为ROOTFS_OVERLAY
  else #busybox
-   ROOTFS_BUILD_ENV := rootfs_prepare pctools busybox boardtools drv
+   ROOTFS_BUILD_ENV := rootfs_prepare pctools busybox boardtools
 endif
 
 ################################################################################
@@ -523,8 +523,8 @@ kernel_clean:
 ##########################################################################################
 rootfs_prepare: prepare
 	@echo -e "$(C_GREEN) ==sysdrv== prepare rootfs   $(C_NORMAL)"
-	# rm -rf $(SYSDRV_DIR_OUT_ROOTFS)
-	# mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)
+	rm -rf $(SYSDRV_DIR_OUT_ROOTFS)
+	mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)
 	# tar xf $(SYSDRV_DIR)/tools/board/rootfs_script.tar -C $(SYSDRV_DIR_OUT_ROOTFS)
 	cp -rfp $(SYSDRV_DIR)/tools/board/base_rootfs/* $(SYSDRV_DIR_OUT_ROOTFS)
 	find $(SYSDRV_DIR_OUT_ROOTFS) -name .gitignore | xargs rm 
@@ -619,6 +619,7 @@ buildroot: prepare
 		tar xzf $(SYSDRV_DIR)/tools/board/buildroot/$(BUILDROOT_VER).tar.gz -C $(BUILDROOT_DIR) ;\
 		cp $(SYSDRV_DIR)/tools/board/buildroot/luckfox_pico_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
 		cp $(SYSDRV_DIR)/tools/board/buildroot/luckfox_pico_w_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
+		cp $(SYSDRV_DIR)/tools/board/buildroot/rv1106_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
 		cp $(SYSDRV_DIR)/tools/board/buildroot/busybox.config $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/busybox/ ;\
 		cp ${HCITOOL_TOOL_PATH}/0001-Fixed-header-file-errors.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/ ;\
 		cp ${HCITOOL_TOOL_PATH}/0002-Fix-build-errors.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/ ;\

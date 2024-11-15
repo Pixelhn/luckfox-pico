@@ -59,10 +59,10 @@ export RK_PARTITION_FS_TYPE_CFG=rootfs@IGNORE@ext4,userdata@/userdata@ext4,oem@/
 #################################################
 
 # Target rootfs : ubuntu(only emmc)/buildroot/busybox/custom
-export LF_TARGET_ROOTFS=busybox
+export LF_TARGET_ROOTFS=buildroot
 
 # Buildroot defconfig
-export RK_BUILDROOT_DEFCONFIG=luckfox_pico_w_defconfig
+export RK_BUILDROOT_DEFCONFIG=rv1106_defconfig
 
 #################################################
 # 	Defconfig

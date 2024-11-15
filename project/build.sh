@@ -876,6 +876,8 @@ function build_kernel() {
 		KERNEL_CFG=${RK_KERNEL_DEFCONFIG} \
 		KERNEL_CFG_FRAGMENT=${RK_KERNEL_DEFCONFIG_FRAGMENT}
 
+	make drv -C ${SDK_SYSDRV_DIR}
+
 	finish_build
 }
 
@@ -2615,7 +2617,18 @@ function build_firmware() {
 			build_mkimg boot $RK_PROJECT_PACKAGE_ROOTFS_DIR
 		fi
 	else
-		build_mkimg $GLOBAL_ROOT_FILESYSTEM_NAME $RK_PROJECT_PACKAGE_ROOTFS_DIR
+		if [ "$LF_TARGET_ROOTFS" = "buildroot" ]; then
+			echo buildroot
+
+			rm $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/hostname
+			rm $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/hosts
+			rm -rf $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/network
+
+			make buildroot -C ${SDK_SYSDRV_DIR} || exit
+			cp ${BUILDROOT_PATH}/output/images/rootfs.ext4 $RK_PROJECT_OUTPUT_IMAGE/rootfs.img
+		else
+			build_mkimg $GLOBAL_ROOT_FILESYSTEM_NAME $RK_PROJECT_PACKAGE_ROOTFS_DIR
+		fi
 	fi
 
 	# package a empty userdata parition image
@@ -2629,7 +2642,7 @@ function build_firmware() {
 	# build_tftp_sd_update
 
 	[ "$RK_ENABLE_RECOVERY" = "y" -o "$RK_ENABLE_OTA" = "y" ] && build_ota
-	build_updateimg
+	# build_updateimg
 
 	# Spi_nand mklink
 	if [ "${RK_BOOT_MEDIUM}" == "spi_nand" ]; then
