@@ -1511,8 +1511,26 @@ function __PACKAGE_OEM() {
 	cat >$RK_PROJECT_FILE_OEM_SCRIPT <<EOF
 #!/bin/sh
 [ -f /etc/profile.d/RkEnv.sh ] && source /etc/profile.d/RkEnv.sh
+network_init()
+{
+	ethaddr1=\`ifconfig -a | grep "eth.*HWaddr" | awk '{print $5}'\`
+
+	if [ -f /data/ethaddr.txt ]; then
+		ethaddr2=\`cat /data/ethaddr.txt\`
+		if [ \$ethaddr1 == \$ethaddr2 ]; then
+			echo "eth HWaddr cfg ok"
+		else
+			ifconfig eth0 down
+			ifconfig eth0 hw ether \$ethaddr2
+		fi
+	else
+		echo \$ethaddr1 > /data/ethaddr.txt
+	fi
+}
 case \$1 in
 	start)
+		network_init
+
 		if [ -f "/userdata/net.sh" ];then
 			sh /userdata/net.sh &
 		fi
