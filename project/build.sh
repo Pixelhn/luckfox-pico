@@ -2617,6 +2617,7 @@ function build_firmware() {
 			build_mkimg boot $RK_PROJECT_PACKAGE_ROOTFS_DIR
 		fi
 	else
+		# 当rootfs类型为buildroot时，使用buildroot生成最终rootfs镜像 
 		if [ "$LF_TARGET_ROOTFS" = "buildroot" ]; then
 			echo buildroot
 
@@ -2625,7 +2626,25 @@ function build_firmware() {
 			rm -rf $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/network
 
 			make buildroot -C ${SDK_SYSDRV_DIR} || exit
-			cp ${BUILDROOT_PATH}/output/images/rootfs.ext4 $RK_PROJECT_OUTPUT_IMAGE/rootfs.img
+
+			fs_type=rootfs$GLOBAL_FS_TYPE_SUFFIX
+			fs_type="\$${fs_type}"
+			fs_type=$(eval "echo ${fs_type}")
+
+			echo $fs_type
+			# 复制buildroot对应生成物
+			case $fs_type in
+			ext4)
+				ln -sf ${BUILDROOT_PATH}/output/images/rootfs.ext4 $RK_PROJECT_OUTPUT_IMAGE/rootfs.img
+				;;
+			ubifs)
+				ln -sf ${BUILDROOT_PATH}/output/images/rootfs.ubi $RK_PROJECT_OUTPUT_IMAGE/rootfs.img
+				;;
+			*)
+				msg_error "Not support fs type: $fs_type"
+				;;
+			esac
+
 		else
 			build_mkimg $GLOBAL_ROOT_FILESYSTEM_NAME $RK_PROJECT_PACKAGE_ROOTFS_DIR
 		fi

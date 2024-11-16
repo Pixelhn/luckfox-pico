@@ -341,9 +341,7 @@ else
 	$FAKEROOT_TOOL -- $ROOTFS_IMAGE_FAKEROOT_UBI
 fi
 
-if [ "$RK_DEBUG" != "1" ]; then
-rm -rf $TEMP_UBI_CFG_DIR
-fi
+
 msg_info "End build ubi images..."
 pop_unused_files
 
