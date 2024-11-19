@@ -23,7 +23,7 @@ PKG_DEP_WPA_SUPPLICANT := ./wpa_supplicant
 PKG_DEP_OPENSSH := ./openssh
 PKG_DEP_DROPBEAR := ./dropbear
 
-all:dep_openssl tool_iperf3 tool_picocom tool_wpa_supplicant tool_dropear tool_openssh
+all:dep_openssl tool_iperf3 tool_picocom tool_wpa_supplicant tool_hostapd tool_dropear tool_openssh
 
 tool_io:
 	rm -rf $(PKG_BIN)/io;
@@ -41,6 +41,9 @@ tool_openssh:
 
 tool_wpa_supplicant:
 	$(MAKE) -C $(PKG_DEP_WPA_SUPPLICANT)
+
+tool_hostapd:
+	$(MAKE) -C ./hostapd
 
 tool_picocom:
 	$(MAKE) -C $(PKG_DEP_PICOCOM)

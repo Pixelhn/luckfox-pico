@@ -28,7 +28,7 @@ all: lib_nl lib_openssl
 		echo "CFLAGS += -I${PKG_LIB_NL}/out/include" >> .config; \
 		echo "CC=${SYSDRV_CROSS}-gcc" >> .config; \
 		${MAKE} -C ${BUILD_TARGET_DIR} PKG_CONFIG_PATH=${PKG_CONFIG_PATH3} -j$(SYSDRV_JOBS); \
-		cp ${BUILD_TARGET_DIR}/hostapd ${BUILD_TARGET_DIR}/hostapd.conf ${BUILD_TARGET_OUT}; \
+		cp ${BUILD_TARGET_DIR}/hostapd ${BUILD_TARGET_OUT}; \
 		${SYSDRV_CROSS}-strip ${BUILD_TARGET_OUT}/*; \
 	popd;)
 	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
@@ -49,6 +49,4 @@ lib_openssl:
 
 distclean:
 	-rm -rf ${CURRENT_DIR}/hostapd-2.11 ${BUILD_TARGET_OUT}
-	$(MAKE) -C ${PKG_LIB_EXPAT}	clean
-	$(MAKE) -C ${PKG_LIB_DBUS} clean
 	$(MAKE) -C ${PKG_LIB_NL} clean
