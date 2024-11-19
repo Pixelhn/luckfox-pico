@@ -10,15 +10,15 @@ export PKG_LIB_DBUS := $(CURRENT_DIR)/../dbus
 export PKG_LIB_NL := $(CURRENT_DIR)/../libnl
 export PKG_LIB_OPENSSL := $(CURRENT_DIR)/../openssl
 
-BUILD_TARGET := ${CURRENT_DIR}/wpa_supplicant-2.10.tar.gz
-BUILD_TARGET_DIR := ${CURRENT_DIR}/wpa_supplicant-2.10/wpa_supplicant/
+BUILD_TARGET := ${CURRENT_DIR}/wpa_supplicant-2.11.tar.gz
+BUILD_TARGET_DIR := ${CURRENT_DIR}/wpa_supplicant-2.11/wpa_supplicant/
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 
 PKG_CONFIG_PATH3=${PKG_LIB_DBUS}/out/lib/pkgconfig:${PKG_LIB_NL}/out/lib/pkgconfig:${PKG_LIB_OPENSSL}/out3/lib/pkgconfig
 
 all: lib_nl lib_openssl
 	@test -f $(BUILD_TARGET_OUT)/wpa_supplicant || ( \
-		rm -rf ${CURRENT_DIR}/wpa_supplicant-2.10 ${BUILD_TARGET_OUT}; \
+		rm -rf ${CURRENT_DIR}/wpa_supplicant-2.11 ${BUILD_TARGET_OUT}; \
 		tar -xf ${BUILD_TARGET}; \
 		mkdir -p $(BUILD_TARGET_OUT); \
 		cp defconfig ${BUILD_TARGET_DIR}/.config; \
@@ -30,10 +30,12 @@ all: lib_nl lib_openssl
 		echo "CFLAGS += -I${PKG_LIB_NL}/out/include" >> .config; \
 		echo "CC=${SYSDRV_CROSS}-gcc" >> .config; \
 		${MAKE} -C ${BUILD_TARGET_DIR} PKG_CONFIG_PATH=${PKG_CONFIG_PATH3} -j$(SYSDRV_JOBS); \
-		cp ${BUILD_TARGET_DIR}/wpa_supplicant ${BUILD_TARGET_DIR}/wpa_cli ${BUILD_TARGET_OUT}; \
+		cp ${BUILD_TARGET_DIR}/wpa_supplicant ${BUILD_TARGET_DIR}/wpa_cli ${BUILD_TARGET_DIR}/wpa_passphrase ${BUILD_TARGET_OUT}; \
 		${SYSDRV_CROSS}-strip ${BUILD_TARGET_OUT}/*; \
 	popd;)
-	cp -rfp $(BUILD_TARGET_OUT)/*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin;
+	test -z "$(SYSDRV_DIR_OUT_ROOTFS)" || ( \
+	cp -rfp $(BUILD_TARGET_OUT)/*  $(SYSDRV_DIR_OUT_ROOTFS)/usr/bin; \
+	)
 
 lib_dbus:lib_expat
 	$(MAKE) -C ${PKG_LIB_DBUS}
@@ -48,7 +50,7 @@ lib_openssl:
 	$(MAKE) -C ${PKG_LIB_OPENSSL}
 
 distclean:
-	-rm -rf ${CURRENT_DIR}/wpa_supplicant-2.10 ${BUILD_TARGET_OUT}
+	-rm -rf ${CURRENT_DIR}/wpa_supplicant-2.11 ${BUILD_TARGET_OUT}
 	$(MAKE) -C ${PKG_LIB_EXPAT}	clean
 	$(MAKE) -C ${PKG_LIB_DBUS} clean
 	$(MAKE) -C ${PKG_LIB_NL} clean
