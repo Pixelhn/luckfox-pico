@@ -34,8 +34,8 @@ ifeq ($(PKG_USE_THUMB2),YES)
 PKG_CONF_OPTS += -mthumb -Wa,-mimplicit-it=thumb -mthumb-interwork
 endif
 
-PKG_TARBALL_OPENSSL3 := openssl-3.1.3.tar.gz
-PKG_NAME_OPENSSL3 := openssl-3.1.3
+PKG_TARBALL_OPENSSL3 := openssl-3.4.0.tar.gz
+PKG_NAME_OPENSSL3 := openssl-3.4.0
 PKG_BIN3 := out3
 #SYSDRV_CROSS=arm-rockchip830-linux-uclibcgnueabihf-
 
@@ -70,7 +70,7 @@ openssl3:
 	tar -xf $(PKG_TARBALL_OPENSSL3); \
 	mkdir -p $(CURRENT_DIR)/$(PKG_BIN3); \
 	pushd $(CURRENT_DIR)/$(PKG_NAME_OPENSSL3)/; \
-			./Configure \
+			./Configure no-docs \
 			$(PKG_OS_COMPILE_FLAG_OPENSSL) \
 			--prefix=$(CURRENT_DIR)/$(PKG_BIN3) \
 			--cross-compile-prefix=${SYSDRV_CROSS}-; \
