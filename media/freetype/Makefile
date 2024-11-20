@@ -14,8 +14,8 @@ export PKG_LIB_ZLIB := $(CURRENT_DIR)/../../../sysdrv/tools/board/toolkits/zlib/
 
 PKG_CONFIG_PATH3=${PKG_LIB_ZLIB}/out/lib/pkgconfig
 
-BUILD_TARGET := ${CURRENT_DIR}/freetype-2.13.2.tar.xz
-BUILD_TARGET_DIR := ${CURRENT_DIR}/freetype-2.13.2
+BUILD_TARGET := ${CURRENT_DIR}/freetype-2.13.3.tar.xz
+BUILD_TARGET_DIR := ${CURRENT_DIR}/freetype-2.13.3
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 
 all:
