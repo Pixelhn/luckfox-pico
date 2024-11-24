@@ -622,6 +622,7 @@ buildroot: prepare
 	cp $(SYSDRV_DIR)/tools/board/buildroot/luckfox_pico_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
 	cp $(SYSDRV_DIR)/tools/board/buildroot/luckfox_pico_w_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
 	cp $(SYSDRV_DIR)/tools/board/buildroot/rv1106_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
+	cp $(SYSDRV_DIR)/tools/board/buildroot/rv1106_nand_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
 	cp $(SYSDRV_DIR)/tools/board/buildroot/rv1103_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
 	cp $(SYSDRV_DIR)/tools/board/buildroot/busybox.config $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/busybox/ ;\
 	cp ${HCITOOL_TOOL_PATH}/0001-Fixed-header-file-errors.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/ ;\

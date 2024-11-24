@@ -62,7 +62,7 @@ export RK_PARTITION_FS_TYPE_CFG=rootfs@IGNORE@ubifs,oem@/oem@ubifs,userdata@/use
 export LF_TARGET_ROOTFS=buildroot
 
 # Buildroot defconfig
-export RK_BUILDROOT_DEFCONFIG=rv1106_defconfig
+export RK_BUILDROOT_DEFCONFIG=rv1106_nand_defconfig
 
 #################################################
 # 	Defconfig
