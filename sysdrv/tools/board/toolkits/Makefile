@@ -68,3 +68,4 @@ distclean:
 	${MAKE} -C ${PKG_DEP_DROPBEAR} distclean
 	$(MAKE) -C $(PKG_DEP_OPENSSH) distclean
 	$(MAKE) -C $(PKG_DEP_PICOCOM) distclean
+	$(MAKE) -C ./hostapd distclean
