@@ -90,15 +90,20 @@
 };
 
 /**********UART**********/
-//&uart3 {
-//	status = "okay";
-//	pinctrl-names = "default";
-//	pinctrl-0 = <&uart3m1_xfer>;
-//};
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3m1_xfer>;
+};
 &uart4 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart4m1_xfer>;
+};
+&uart5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart5m0_xfer>;
 };
 
 /**********PWM**********/
