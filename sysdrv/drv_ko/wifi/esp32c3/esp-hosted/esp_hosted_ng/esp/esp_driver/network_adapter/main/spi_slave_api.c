@@ -28,6 +28,7 @@
 #include "freertos/task.h"
 #include "stats.h"
 #include "soc/gpio_reg.h"
+#include "esp_fw_version.h"
 
 static const char TAG[] = "FW_SPI";
 #define SPI_BITS_PER_WORD			8
@@ -41,6 +42,8 @@ static const char TAG[] = "FW_SPI";
 #define IS_SPI_DMA_ALIGNED(VAL)	(!((VAL)& SPI_DMA_ALIGNMENT_MASK))
 #define MAKE_SPI_DMA_ALIGNED(VAL)  (VAL += SPI_DMA_ALIGNMENT_BYTES - \
 				((VAL)& SPI_DMA_ALIGNMENT_MASK))
+
+uint8_t g_spi_mode = SPI_MODE_2;
 
 /* Chipset specific configurations */
 #ifdef CONFIG_IDF_TARGET_ESP32
@@ -224,10 +227,14 @@ esp_err_t send_bootup_event_to_host(uint8_t cap)
 	*pos = sizeof(struct fw_data);        pos++; len++;
 	fw_p = (struct fw_data *) pos;
 	/* core0 sufficient now */
-	fw_p->last_reset_reason = htole32(rtc_get_reset_reason(0)); 
+	fw_p->last_reset_reason = htole32(rtc_get_reset_reason(0));
+	memcpy(fw_p->version.project_name, PROJECT_NAME, strlen(PROJECT_NAME));
+	fw_p->version.project_name[strlen(PROJECT_NAME)] = '\0';
 	fw_p->version.major1 = PROJECT_VERSION_MAJOR_1;
 	fw_p->version.major2 = PROJECT_VERSION_MAJOR_2;
 	fw_p->version.minor  = PROJECT_VERSION_MINOR;
+	fw_p->version.revision_patch_1  = PROJECT_REVISION_PATCH_1;
+	fw_p->version.revision_patch_2  = PROJECT_REVISION_PATCH_2;
 	pos+=sizeof(struct fw_data);
 	len+=sizeof(struct fw_data);
 
@@ -505,9 +512,10 @@ static interface_handle_t * esp_spi_init(void)
 #endif
 	};
 
+	ESP_LOGI(TAG,"Using SPI MODE %d",g_spi_mode);
 	/* Configuration for the SPI slave interface */
 	spi_slave_interface_config_t slvcfg={
-		.mode=SPI_MODE_2,
+		.mode=g_spi_mode,
 		.spics_io_num=GPIO_CS,
 		.queue_size=SPI_QUEUE_SIZE,
 		.flags=0,

@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "esp_api.h"
 #include "esp_kernel_port.h"
+#include "esp_bt_api.h"
 
 #define INVALID_HDEV_BUS (0xff)
 
@@ -173,6 +174,7 @@ int esp_deinit_bt(struct esp_adapter *adapter)
 
 	hdev = adapter->hcidev;
 
+	hci_set_drvdata(hdev, NULL);
 	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
 
@@ -240,9 +242,12 @@ int esp_init_bt(struct esp_adapter *adapter)
 	hdev->set_bdaddr = esp_bt_set_bdaddr;
 #endif
 
+#ifdef HCI_PRIMARY
 	hdev->dev_type = HCI_PRIMARY;
+#endif
 
-	SET_HCIDEV_DEV(hdev, adapter->dev);
+	if (adapter->dev)
+		SET_HCIDEV_DEV(hdev, adapter->dev);
 
 	ret = hci_register_dev(hdev);
 	if (ret < 0) {

@@ -104,7 +104,7 @@ class ctrl_cmd(object):
 		return self
 
 
-	def connect_ap(self, ssid : str = "", pwd : str = "", bssid : str = "", use_wpa3 : bool = False, listen_interval : int = 3, set_dhcp : bool = True):
+	def connect_ap(self, ssid : str = "", pwd : str = "", bssid : str = "", use_wpa3 : bool = False, listen_interval : int = 3, set_dhcp : bool = True, band_mode: int = WIFI_BAND_MODE_AUTO):
 		"""Connect to AP (Wi-Fi router or hotspot)
 
 		Args:
@@ -114,6 +114,7 @@ class ctrl_cmd(object):
 			use_wpa3(bool, optional): O | Use wpa3 security protocol | Default: False
 			listen_interval(int, optional) : O | Number of AP beacons station will sleep | Default:3
 			set_dhcp(bool, optional): O | Request DHCP | Default: True
+			band_mode(int, optional): O | Connect on 2.4G (1) or 5G (2) band, or Auto select (3) | Default:3
 
 		Returns:
 			ctrl_cmd: ctrl_cmd object
@@ -123,7 +124,7 @@ class ctrl_cmd(object):
 			self.out = "Missing param " + "--ssid"
 			return self
 
-		self.out = process_connect_ap(ssid, pwd, bssid, use_wpa3, listen_interval, set_dhcp)
+		self.out = process_connect_ap(ssid, pwd, bssid, use_wpa3, listen_interval, set_dhcp, band_mode)
 		return self
 
 
@@ -173,7 +174,7 @@ class ctrl_cmd(object):
 		return self
 
 
-	def start_softap(self, ssid : str = "", pwd : str = "", channel : int = 1, sec_prot: str = "wpa_wpa2_psk", max_conn: int = 4, hide_ssid: bool = False, bw : int = 20):
+	def start_softap(self, ssid : str = "", pwd : str = "", channel : int = 1, sec_prot: str = "wpa_wpa2_psk", max_conn: int = 4, hide_ssid: bool = False, bw : int = 20, start_dhcp_server : bool = True, band_mode: int = WIFI_BAND_MODE_AUTO):
 		"""Connect to AP (Wi-Fi router or hotspot)
 
 		Args:
@@ -184,6 +185,8 @@ class ctrl_cmd(object):
 			max_conn(int, optional) : O | Max num of stations that can connect | Default:4
 			hide_ssid(bool, optional): O | Hide SSID broadcasting [ True | False ] | Default: False
 			bw(int, optional): O | Wi-Fi Bandwidth [ 20 | 40 ] | Default: 20
+			start_dhcp_server(bool, optional): O | Start DHCP server | Default: True
+			band_mode(int, optional): O | Connect on 2.4G (1) or 5G (2) band, or Auto select (3) | Default:3
 
 		Returns:
 			ctrl_cmd: ctrl_cmd object
@@ -196,7 +199,7 @@ class ctrl_cmd(object):
 			self.out = "Missing param " + "--pwd"
 			return self
 
-		self.out = process_start_softap(ssid, pwd, channel, sec_prot, max_conn, hide_ssid, bw)
+		self.out = process_start_softap(ssid, pwd, channel, sec_prot, max_conn, hide_ssid, bw, start_dhcp_server, band_mode)
 		return self
 
 
@@ -296,6 +299,66 @@ class ctrl_cmd(object):
 		self.out = process_wifi_curr_tx_power()
 		return self
 
+	def enable_wifi(self):
+		"""Enable Wi-Fi
+
+		Args:
+			no_arg(str,optional): O | Dummy arg
+
+		Returns:
+			ctrl_cmd: ctrl_cmd object
+		"""
+		self.out = process_enable_wifi()
+		return self
+
+	def disable_wifi(self):
+		"""Disable Wi-Fi
+
+		Args:
+			no_arg(str,optional): O | Dummy arg
+
+		Returns:
+			ctrl_cmd: ctrl_cmd object
+		"""
+		self.out = process_disable_wifi()
+		return self
+
+	def enable_bt(self):
+		"""Enable Bluetooth
+
+		Args:
+			no_arg(str,optional): O | Dummy arg
+
+		Returns:
+			ctrl_cmd: ctrl_cmd object
+		"""
+		self.out = process_enable_bluetooth()
+		return self
+
+	def disable_bt(self):
+		"""Disable Bluetooth
+
+		Args:
+			no_arg(str,optional): O | Dummy arg
+
+		Returns:
+			ctrl_cmd: ctrl_cmd object
+		"""
+		self.out = process_disable_bluetooth()
+		return self
+
+	def get_fw_version(self):
+		"""Get Firmware Version
+
+		Args:
+			no_arg(str,optional): O | Dummy arg
+
+		Returns:
+			ctrl_cmd: ctrl_cmd object
+		"""
+		self.out = process_get_fw_version()
+		return self
+
 
 	def ota_update(self, url : str = ""):
 		"""OTA update with HTTP link
@@ -333,7 +396,7 @@ class ctrl_cmd(object):
 		"""Subscribe event to get notifications
 
 		Args:
-			event(str,mandatory): M | Values ['esp_init' | 'heartbeat' | 'sta_disconnect_from_ap' | 'sta_disconnect_from_softap']
+			event(str,mandatory): M | Values ['esp_init' | 'heartbeat' | 'sta_connected_to_ap' | 'sta_disconnect_from_ap' | 'sta_connected_to_softap' | 'sta_disconnect_from_softap' | 'all' ]
 
 		Returns:
 			ctrl_cmd: ctrl_cmd object
@@ -351,7 +414,7 @@ class ctrl_cmd(object):
 		"""Unsubscribe event to get notifications
 
 		Args:
-			event(str,mandatory): M | Values ['esp_init' | 'heartbeat' | 'sta_disconnect_from_ap' | 'sta_disconnect_from_softap']
+			event(str,mandatory): M | Values ['esp_init' | 'heartbeat' | 'sta_disconnect_from_ap' | 'sta_disconnect_from_softap' | 'all' ]
 
 		Returns:
 			ctrl_cmd: ctrl_cmd object

@@ -30,6 +30,7 @@
 #include "esp_serial.h"
 #include "esp_kernel_port.h"
 #include "esp_stats.h"
+#include "esp_fw_verify.h"
 
 #define SPI_INITIAL_CLK_MHZ     10
 #define NUMBER_1M               1000000
@@ -44,6 +45,7 @@
 #define ESP_PRIV_FIRMWARE_CHIP_ESP32C3      (0x5)
 #define ESP_PRIV_FIRMWARE_CHIP_ESP32S3      (0x9)
 #define ESP_PRIV_FIRMWARE_CHIP_ESP32C2      (0xC)
+#define ESP_PRIV_FIRMWARE_CHIP_ESP32C5      (0x17)
 #define ESP_PRIV_FIRMWARE_CHIP_ESP32C6      (0xD)
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
@@ -58,9 +60,8 @@
 static struct sk_buff * read_packet(struct esp_adapter *adapter);
 static int write_packet(struct esp_adapter *adapter, struct sk_buff *skb);
 static void spi_exit(void);
-static void adjust_spi_clock(u8 spi_clk_mhz);
 static void esp_spi_transaction(void);
-static int spi_dev_init(int spi_clk_mhz);
+static int spi_dev_init(struct esp_spi_context *context);
 static int spi_init(void);
 
 volatile u8 data_path = 0;
@@ -170,9 +171,6 @@ static int write_packet(struct esp_adapter *adapter, struct sk_buff *skb)
 	} else {
 		if (atomic_read(&tx_pending) >= TX_MAX_PENDING_COUNT) {
 			esp_tx_pause();
-			dev_kfree_skb(skb);
-			up(&spi_sem);
-			return -EBUSY;
 		}
 		skb_queue_tail(&spi_context.tx_q[PRIO_Q_OTHERS], skb);
 		atomic_inc(&tx_pending);
@@ -191,6 +189,8 @@ int process_init_event(u8 *evt_buf, u8 len)
 	struct esp_adapter *adapter = esp_get_adapter();
 	uint8_t prio_q_idx = 0;
 	int ret = 0;
+	struct fw_version *fw_p;
+	int fw_version_checked = 0;
 
 	if (!evt_buf)
 		return -1;
@@ -202,24 +202,37 @@ int process_init_event(u8 *evt_buf, u8 len)
 		esp_info("EVENT: %d\n", *pos);
 		if (*pos == ESP_PRIV_CAPABILITY) {
 			adapter->capabilities = *(pos + 2);
-		} else if (*pos == ESP_PRIV_SPI_CLK_MHZ){
-			adjust_spi_clock(*(pos + 2));
 		} else if (*pos == ESP_PRIV_FIRMWARE_CHIP_ID){
 			hardware_type = *(pos+2);
 		} else if (*pos == ESP_PRIV_TEST_RAW_TP) {
 			process_test_capabilities(*(pos + 2));
+		} else if (*pos == ESP_PRIV_FW_DATA) {
+			fw_p = (struct fw_version *)(pos + 2);
+			ret = process_fw_data(fw_p, tag_len);
+			if (ret) {
+				esp_err("Incompatible ESP Firmware detected\n");
+				return -1;
+			}
+			fw_version_checked = 1;
 		} else {
 			esp_warn("Unsupported tag in event\n");
 		}
 		pos += (tag_len+2);
 		len_left -= (tag_len+2);
 	}
+
+	/* TODO: abort if strict firmware check is not performed */
+	if ((get_fw_check_type() == FW_CHECK_STRICT) && !fw_version_checked) {
+		esp_warn("ESP Firmware version was not checked");
+	}
+
 	if ((hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32) &&
-	    (hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32S2) &&
-	    (hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32C2) &&
-	    (hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32C3) &&
-	    (hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32C6) &&
-	    (hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32S3)) {
+		(hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32S2) &&
+		(hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32C2) &&
+		(hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32C3) &&
+		(hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32C5) &&
+		(hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32C6) &&
+		(hardware_type != ESP_PRIV_FIRMWARE_CHIP_ESP32S3)) {
 		esp_err("ESP board type [%d] is not recognized: aborting\n", hardware_type);
 		hardware_type = ESP_PRIV_FIRMWARE_CHIP_UNRECOGNIZED;
 		return -1;
@@ -323,14 +336,14 @@ static void esp_spi_transaction(void)
 	struct sk_buff *tx_skb = NULL, *rx_skb = NULL;
 	u8 *rx_buf;
 	int ret = 0;
-	volatile int trans_ready, rx_pending;
+	volatile int slave_ready, rx_pending;
 
 	mutex_lock(&spi_lock);
 
-	trans_ready = gpio_get_value(HANDSHAKE_PIN);
-	rx_pending = gpio_get_value(SPI_DATA_READY_PIN);
+	slave_ready = gpio_get_value(spi_context.handshake_gpio);
+	rx_pending = gpio_get_value(spi_context.dataready_gpio);
 
-	if (trans_ready) {
+	if (slave_ready) {
 		if (data_path) {
 			tx_skb = skb_dequeue(&spi_context.tx_q[PRIO_Q_SERIAL]);
 			if (!tx_skb)
@@ -459,17 +472,32 @@ static struct spi_controller *spi_busnum_to_master(u16 bus_num)
 }
 #endif
 
-static int spi_dev_init(int spi_clk_mhz)
+static int spi_dev_init(struct esp_spi_context *context)
 {
 	int status = 0;
 	struct spi_board_info esp_board = {{0}};
 	struct spi_master *master = NULL;
+	struct esp_adapter *adapter = NULL;
+
+	if (!context || !context->adapter) {
+		esp_info("Null spi context or adapter\n");
+		return -ENODEV;
+	}
+
+	adapter = context->adapter;
 
 	strscpy(esp_board.modalias, "esp_spi", sizeof(esp_board.modalias));
-	esp_board.mode = SPI_MODE_2;
-	esp_board.max_speed_hz = spi_clk_mhz * NUMBER_1M;
-	esp_board.bus_num = 0;
-	esp_board.chip_select = 0;
+	esp_board.max_speed_hz = context->spi_clk_mhz* NUMBER_1M;
+	esp_board.mode =  adapter->mod_param.spi_mode;
+	esp_board.bus_num = adapter->mod_param.spi_bus;
+	esp_board.chip_select = adapter->mod_param.spi_cs;
+
+	esp_info("Config - GPIOs: resetpin[%d] Handshake[%d] Dataready[%d]\n",
+		adapter->mod_param.resetpin, context->handshake_gpio,
+		context->dataready_gpio);
+	esp_info("Config - SPI: clock[%dMHz] bus[%d] cs[%d] mode[%d]\n",
+		context->spi_clk_mhz, esp_board.bus_num,
+		esp_board.chip_select, esp_board.mode);
 
 	master = spi_busnum_to_master(esp_board.bus_num);
 	if (!master) {
@@ -496,20 +524,16 @@ static int spi_dev_init(int spi_clk_mhz)
 		return status;
 	}
 
-	esp_info("ESP host driver claiming SPI bus [%d]"
-			",chip select [%d] with init SPI Clock [%d]\n", esp_board.bus_num,
-			esp_board.chip_select, spi_clk_mhz);
-
 	set_bit(ESP_SPI_BUS_SET, &spi_context.spi_flags);
 
-	status = gpio_request(HANDSHAKE_PIN, "SPI_HANDSHAKE_PIN");
+	status = gpio_request(context->handshake_gpio, "SPI_HANDSHAKE_PIN");
 
 	if (status) {
 		esp_err("Failed to obtain GPIO for Handshake pin, err:%d\n", status);
 		return status;
 	}
 
-	status = gpio_direction_input(HANDSHAKE_PIN);
+	status = gpio_direction_input(context->handshake_gpio);
 
 	if (status) {
 		esp_err("Failed to set GPIO direction of Handshake pin, err: %d\n", status);
@@ -517,7 +541,7 @@ static int spi_dev_init(int spi_clk_mhz)
 	}
 	set_bit(ESP_SPI_GPIO_HS_REQUESTED, &spi_context.spi_flags);
 
-	status = request_irq(SPI_IRQ, spi_interrupt_handler,
+	status = request_irq(gpio_to_irq(context->handshake_gpio), spi_interrupt_handler,
 			IRQF_SHARED | IRQF_TRIGGER_RISING,
 			"ESP_SPI", spi_context.esp_spi_dev);
 	if (status) {
@@ -526,20 +550,20 @@ static int spi_dev_init(int spi_clk_mhz)
 	}
 	set_bit(ESP_SPI_GPIO_HS_IRQ_DONE, &spi_context.spi_flags);
 
-	status = gpio_request(SPI_DATA_READY_PIN, "SPI_DATA_READY_PIN");
+	status = gpio_request(context->dataready_gpio, "SPI_DATA_READY_PIN");
 	if (status) {
 		esp_err("Failed to obtain GPIO for Data ready pin, err:%d\n", status);
 		return status;
 	}
 	set_bit(ESP_SPI_GPIO_DR_REQUESTED, &spi_context.spi_flags);
 
-	status = gpio_direction_input(SPI_DATA_READY_PIN);
+	status = gpio_direction_input(context->dataready_gpio);
 	if (status) {
 		esp_err("Failed to set GPIO direction of Data ready pin\n");
 		return status;
 	}
 
-	status = request_irq(SPI_DATA_READY_IRQ, spi_data_ready_interrupt_handler,
+	status = request_irq(gpio_to_irq(context->dataready_gpio), spi_data_ready_interrupt_handler,
 			IRQF_SHARED | IRQF_TRIGGER_RISING,
 			"ESP_SPI_DATA_READY", spi_context.esp_spi_dev);
 	if (status) {
@@ -595,7 +619,7 @@ static int spi_init(void)
 	}
 
 	esp_info("ESP: SPI host config: GPIOs: Handshake[%u] DataReady[%u]\n",
-			HANDSHAKE_PIN, SPI_DATA_READY_PIN);
+			spi_context.handshake_gpio, spi_context.dataready_gpio);
 
 	for (prio_q_idx=0; prio_q_idx<MAX_PRIORITY_QUEUES; prio_q_idx++) {
 		skb_queue_head_init(&spi_context.tx_q[prio_q_idx]);
@@ -603,7 +627,7 @@ static int spi_init(void)
 	}
 
 
-	status = spi_dev_init(spi_context.spi_clk_mhz);
+	status = spi_dev_init(&spi_context);
 	if (status) {
 		spi_exit();
 		esp_err("Failed Init SPI device\n");
@@ -631,11 +655,11 @@ static void spi_exit(void)
 	spi_context.adapter->state = ESP_CONTEXT_DISABLED;
 
 	if (test_bit(ESP_SPI_GPIO_HS_IRQ_DONE, &spi_context.spi_flags)) {
-		disable_irq(SPI_IRQ);
+		disable_irq(gpio_to_irq(spi_context.handshake_gpio));
 	}
 
 	if (test_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags)) {
-		disable_irq(SPI_DATA_READY_IRQ);
+		disable_irq(gpio_to_irq(spi_context.dataready_gpio));
 	}
 
 	close_data_path();
@@ -655,27 +679,22 @@ static void spi_exit(void)
 	esp_remove_card(spi_context.adapter);
 
 	if (test_bit(ESP_SPI_GPIO_HS_IRQ_DONE, &spi_context.spi_flags)) {
-		free_irq(SPI_IRQ, spi_context.esp_spi_dev);
+		free_irq(gpio_to_irq(spi_context.handshake_gpio), spi_context.esp_spi_dev);
 		clear_bit(ESP_SPI_GPIO_HS_IRQ_DONE, &spi_context.spi_flags);
 	}
 
 	if (test_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags)) {
-		free_irq(SPI_DATA_READY_IRQ, spi_context.esp_spi_dev);
-		clear_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags);
-	}
-
-	if (test_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags)) {
-		free_irq(SPI_DATA_READY_IRQ, spi_context.esp_spi_dev);
+		free_irq(gpio_to_irq(spi_context.dataready_gpio), spi_context.esp_spi_dev);
 		clear_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags);
 	}
 
 	if (test_bit(ESP_SPI_GPIO_DR_REQUESTED, &spi_context.spi_flags)) {
-		gpio_free(SPI_DATA_READY_PIN);
+		gpio_free(spi_context.dataready_gpio);
 		clear_bit(ESP_SPI_GPIO_DR_REQUESTED, &spi_context.spi_flags);
 	}
 
 	if (test_bit(ESP_SPI_GPIO_HS_REQUESTED, &spi_context.spi_flags)) {
-		gpio_free(HANDSHAKE_PIN);
+		gpio_free(spi_context.handshake_gpio);
 		clear_bit(ESP_SPI_GPIO_HS_REQUESTED, &spi_context.spi_flags);
 	}
 
@@ -694,15 +713,6 @@ static void spi_exit(void)
 	memset(&spi_context, 0, sizeof(spi_context));
 }
 
-static void adjust_spi_clock(u8 spi_clk_mhz)
-{
-	if ((spi_clk_mhz) && (spi_clk_mhz != SPI_INITIAL_CLK_MHZ)) {
-		esp_info("ESP Reconfigure SPI CLK to %u MHz\n",spi_clk_mhz);
-		spi_context.spi_clk_mhz = spi_clk_mhz;
-		spi_context.esp_spi_dev->max_speed_hz = spi_clk_mhz * NUMBER_1M;
-	}
-}
-
 int esp_init_interface_layer(struct esp_adapter *adapter)
 {
 	if (!adapter) {
@@ -710,13 +720,46 @@ int esp_init_interface_layer(struct esp_adapter *adapter)
 		return -EINVAL;
 	}
 
+	if ((adapter->mod_param.spi_bus       == MOD_PARAM_UNINITIALISED) ||
+	    (adapter->mod_param.spi_mode      == MOD_PARAM_UNINITIALISED) ||
+	    (adapter->mod_param.spi_cs        == MOD_PARAM_UNINITIALISED) ||
+	    (adapter->mod_param.spi_mode      == MOD_PARAM_UNINITIALISED) ||
+	    (adapter->mod_param.spi_handshake == MOD_PARAM_UNINITIALISED) ||
+	    (adapter->mod_param.spi_dataready == MOD_PARAM_UNINITIALISED)) {
+		esp_err("Incorrect/Uncomplete SPI config.\n\n");
+		esp_err("You can use one of methods:\n[A] Use module params to pass:\n\t\t1) spi_bus=<bus_instance> \n\t\t2) spi_cs=<CS_instance> \n\t\t3) spi_mode=<1/2/3> \n\t\t4) spi_handshake=<gpio_val> \n\t\t5) spi_dataready=<gpio_val> \n\t\t6) resetpin=<gpio_val>\n[B] hardcode above params in start of main.c\n");
+		return -EINVAL;
+	}
+
+
 	memset(&spi_context, 0, sizeof(spi_context));
 
 	adapter->if_context = &spi_context;
 	adapter->if_ops = &if_ops;
 	adapter->if_type = ESP_IF_TYPE_SPI;
 	spi_context.adapter = adapter;
-	spi_context.spi_clk_mhz = SPI_INITIAL_CLK_MHZ;
+	if (adapter->mod_param.clockspeed != MOD_PARAM_UNINITIALISED)
+		spi_context.spi_clk_mhz = adapter->mod_param.clockspeed;
+	else
+		spi_context.spi_clk_mhz = SPI_INITIAL_CLK_MHZ;
+
+	spi_context.handshake_gpio = adapter->mod_param.spi_handshake;
+	spi_context.dataready_gpio = adapter->mod_param.spi_dataready;
+
+	if(!gpio_is_valid(spi_context.handshake_gpio)) {
+		esp_err("Couldn't configure Handshake GPIO[%u]\n", spi_context.handshake_gpio);
+		return -EINVAL;
+	}
+
+	if(!gpio_is_valid(spi_context.dataready_gpio)) {
+		esp_err("Couldn't configure Data_Ready GPIO[%u]\n", spi_context.dataready_gpio);
+		return -EINVAL;
+	}
+
+	if(!gpio_is_valid(adapter->mod_param.resetpin)) {
+		esp_err("Couldn't configure Resetpin GPIO[%u]\n", adapter->mod_param.resetpin);
+		return -EINVAL;
+	}
 
 	return spi_init();
 }

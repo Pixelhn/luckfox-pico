@@ -8,6 +8,7 @@
 #include <linux/gpio.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include "esp_spi.h"
 #include "esp_if.h"
 #include "esp_api.h"
@@ -22,6 +23,7 @@
 #define TX_RESUME_THRESHOLD     (TX_MAX_PENDING_COUNT/5)
 
 extern u32 raw_tp_mode;
+uint8_t g_spi_mode = SPI_MODE_2;
 static struct sk_buff *read_packet(struct esp_adapter *adapter);
 static int write_packet(struct esp_adapter *adapter, struct sk_buff *skb);
 static void spi_exit(void);
@@ -227,6 +229,8 @@ static int process_rx_buf(struct sk_buff *skb)
 
 	/* Validate received SKB. Check len and offset fields */
 	if (offset != sizeof(struct esp_payload_header)) {
+		esp_info("offset_rcv[%d] != exp[%d], drop\n",
+				(int)offset, (int)sizeof(struct esp_payload_header));
 		return -EINVAL;
 	}
 
@@ -417,23 +421,26 @@ static int spi_dev_init(int spi_clk_mhz)
 	struct spi_master *master = NULL;
 
 	strscpy(esp_board.modalias, "esp_spi", sizeof(esp_board.modalias));
-	esp_board.mode = SPI_MODE_2;
+	esp_board.mode = g_spi_mode;
 	esp_board.max_speed_hz = spi_clk_mhz * NUMBER_1M;
 	esp_board.bus_num = 0;
 	esp_board.chip_select = 0;
 
+	esp_info("Using SPI MODE %d\n",g_spi_mode);
 	master = spi_busnum_to_master(esp_board.bus_num);
 	if (!master) {
 		esp_err("Failed to obtain SPI master handle\n");
 		return -ENODEV;
 	}
 
+	set_bit(ESP_SPI_BUS_CLAIMED, &spi_context.spi_flags);
 	spi_context.esp_spi_dev = spi_new_device(master, &esp_board);
 
 	if (!spi_context.esp_spi_dev) {
 		esp_err("Failed to add new SPI device\n");
 		return -ENODEV;
 	}
+	spi_context.adapter->dev = &spi_context.esp_spi_dev->dev;
 
 	status = spi_setup(spi_context.esp_spi_dev);
 
@@ -445,6 +452,8 @@ static int spi_dev_init(int spi_clk_mhz)
 	esp_info("ESP32 peripheral is registered to SPI bus [%d],chip select [%d], SPI Clock [%d]\n",
 			esp_board.bus_num,
 			esp_board.chip_select, spi_clk_mhz);
+
+	set_bit(ESP_SPI_BUS_SET, &spi_context.spi_flags);
 
 	status = gpio_request(HANDSHAKE_PIN, "SPI_HANDSHAKE_PIN");
 
@@ -460,6 +469,7 @@ static int spi_dev_init(int spi_clk_mhz)
 		esp_err("Failed to set GPIO direction of Handshake pin, err: %d\n", status);
 		return status;
 	}
+	set_bit(ESP_SPI_GPIO_HS_REQUESTED, &spi_context.spi_flags);
 
 	status = request_irq(SPI_IRQ, spi_interrupt_handler,
 			IRQF_SHARED | IRQF_TRIGGER_RISING,
@@ -469,6 +479,7 @@ static int spi_dev_init(int spi_clk_mhz)
 		esp_err("Failed to request IRQ for Handshake pin, err:%d\n", status);
 		return status;
 	}
+	set_bit(ESP_SPI_GPIO_HS_IRQ_DONE, &spi_context.spi_flags);
 
 	status = gpio_request(SPI_DATA_READY_PIN, "SPI_DATA_READY_PIN");
 	if (status) {
@@ -477,6 +488,7 @@ static int spi_dev_init(int spi_clk_mhz)
 		esp_err("Failed to obtain GPIO for Data ready pin, err:%d\n", status);
 		return status;
 	}
+	set_bit(ESP_SPI_GPIO_DR_REQUESTED, &spi_context.spi_flags);
 
 	status = gpio_direction_input(SPI_DATA_READY_PIN);
 	if (status) {
@@ -497,7 +509,7 @@ static int spi_dev_init(int spi_clk_mhz)
 		esp_err("Failed to request IRQ for Data ready pin, err:%d\n", status);
 		return status;
 	}
-	spi_context.spi_gpio_enabled = 1;
+	set_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags);
 
 	open_data_path();
 
@@ -533,6 +545,7 @@ static int spi_init(void)
 	}
 
 	adapter = spi_context.adapter;
+	atomic_set(&adapter->state, ESP_CONTEXT_READY);
 
 	if (!adapter) {
 		spi_exit();
@@ -544,12 +557,43 @@ static int spi_init(void)
 	return status;
 }
 
+static void cleanup_spi_gpio(void)
+{
+	if (test_bit(ESP_SPI_GPIO_HS_IRQ_DONE, &spi_context.spi_flags)) {
+		free_irq(SPI_IRQ, spi_context.esp_spi_dev);
+		clear_bit(ESP_SPI_GPIO_HS_IRQ_DONE, &spi_context.spi_flags);
+	}
+
+	if (test_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags)) {
+		free_irq(SPI_DATA_READY_IRQ, spi_context.esp_spi_dev);
+		clear_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags);
+	}
+
+	if (test_bit(ESP_SPI_GPIO_DR_REQUESTED, &spi_context.spi_flags)) {
+		gpio_free(SPI_DATA_READY_PIN);
+		clear_bit(ESP_SPI_GPIO_DR_REQUESTED, &spi_context.spi_flags);
+	}
+
+	if (test_bit(ESP_SPI_GPIO_HS_REQUESTED, &spi_context.spi_flags)) {
+		gpio_free(HANDSHAKE_PIN);
+		clear_bit(ESP_SPI_GPIO_HS_REQUESTED, &spi_context.spi_flags);
+	}
+}
+
 static void spi_exit(void)
 {
 	uint8_t prio_q_idx = 0;
+	if (spi_context.adapter)
+		atomic_set(&spi_context.adapter->state, ESP_CONTEXT_DISABLED);
 
-	disable_irq(SPI_IRQ);
-	disable_irq(SPI_DATA_READY_IRQ);
+	if (test_bit(ESP_SPI_GPIO_HS_IRQ_DONE, &spi_context.spi_flags)) {
+		disable_irq(SPI_IRQ);
+	}
+
+	if (test_bit(ESP_SPI_GPIO_DR_IRQ_DONE, &spi_context.spi_flags)) {
+		disable_irq(SPI_DATA_READY_IRQ);
+	}
+
 	close_data_path();
 	msleep(200);
 
@@ -559,26 +603,25 @@ static void spi_exit(void)
 	}
 
 	if (spi_context.spi_workqueue) {
-		flush_scheduled_work();
+		flush_workqueue(spi_context.spi_workqueue);
 		destroy_workqueue(spi_context.spi_workqueue);
 		spi_context.spi_workqueue = NULL;
 	}
 
 	esp_remove_card(spi_context.adapter);
 
-	if (spi_context.adapter->hcidev)
+	cleanup_spi_gpio();
+
+	if (spi_context.adapter && spi_context.adapter->hcidev)
 		esp_deinit_bt(spi_context.adapter);
 
-	if (spi_context.spi_gpio_enabled) {
-		free_irq(SPI_IRQ, spi_context.esp_spi_dev);
-		free_irq(SPI_DATA_READY_IRQ, spi_context.esp_spi_dev);
+	spi_context.adapter->dev = NULL;
 
-		gpio_free(HANDSHAKE_PIN);
-		gpio_free(SPI_DATA_READY_PIN);
-	}
-
-	if (spi_context.esp_spi_dev)
+	if (spi_context.esp_spi_dev) {
 		spi_unregister_device(spi_context.esp_spi_dev);
+		spi_context.esp_spi_dev = NULL;
+		msleep(400);
+	}
 
 	memset(&spi_context, 0, sizeof(spi_context));
 }
@@ -596,6 +639,11 @@ int esp_adjust_spi_clock(struct esp_adapter *adapter, u8 spi_clk_mhz)
 {
 	adjust_spi_clock(spi_clk_mhz);
 
+	return 0;
+}
+
+int generate_slave_intr(void *context, u8 data)
+{
 	return 0;
 }
 

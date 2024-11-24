@@ -27,17 +27,17 @@
 
 static void inline usage(char *argv[])
 {
-	printf("sudo %s <num_of_iterations> [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s <ESP 'network_adaptor.bin' path>]\n",
+	printf("sudo %s <num_of_iterations> [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s <ESP 'network_adaptor.bin' path>]\n",
 		argv[0], SET_STA_MAC_ADDR, GET_STA_MAC_ADDR, SET_SOFTAP_MAC_ADDR, GET_SOFTAP_MAC_ADDR, GET_AP_SCAN_LIST,
 		STA_CONNECT, GET_STA_CONFIG, STA_DISCONNECT, SET_WIFI_MODE, GET_WIFI_MODE,
 		RESET_SOFTAP_VENDOR_IE, SET_SOFTAP_VENDOR_IE, SOFTAP_START, GET_SOFTAP_CONFIG, SOFTAP_CONNECTED_STA_LIST,
-		SOFTAP_STOP, SET_WIFI_POWERSAVE_MODE, GET_WIFI_POWERSAVE_MODE, SET_WIFI_MAX_TX_POWER, GET_WIFI_CURR_TX_POWER,
+		SOFTAP_STOP, SET_WIFI_POWERSAVE_MODE, GET_WIFI_POWERSAVE_MODE, SET_WIFI_MAX_TX_POWER, GET_WIFI_CURR_TX_POWER, GET_FW_VERSION,
 		OTA);
-	printf("\n\nFor example, \nsudo %s 5 %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s <ESP 'network_adaptor.bin' path>\n",
+	printf("\n\nFor example, \nsudo %s 5 %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s <ESP 'network_adaptor.bin' path>\n",
 		argv[0], SET_STA_MAC_ADDR, GET_STA_MAC_ADDR, SET_SOFTAP_MAC_ADDR, GET_SOFTAP_MAC_ADDR, GET_AP_SCAN_LIST,
 		STA_CONNECT, GET_STA_CONFIG, STA_DISCONNECT, SET_WIFI_MODE, GET_WIFI_MODE,
 		RESET_SOFTAP_VENDOR_IE, SET_SOFTAP_VENDOR_IE, SOFTAP_START, GET_SOFTAP_CONFIG, SOFTAP_CONNECTED_STA_LIST,
-		SOFTAP_STOP, SET_WIFI_POWERSAVE_MODE, GET_WIFI_POWERSAVE_MODE, SET_WIFI_MAX_TX_POWER, GET_WIFI_CURR_TX_POWER,
+		SOFTAP_STOP, SET_WIFI_POWERSAVE_MODE, GET_WIFI_POWERSAVE_MODE, SET_WIFI_MAX_TX_POWER, GET_WIFI_CURR_TX_POWER, GET_FW_VERSION,
 		OTA);
 }
 
@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
 	/* Below APIs could be used by demo application */
 	int stress_test_count = 0;
 	int str_args_start = 2;
+	char version[30] = {'\0'};
 
 	if(getuid()) {
 		printf("Please re-run program with superuser access\n");
@@ -83,6 +84,9 @@ int main(int argc, char *argv[])
 
 	register_event_callbacks();
 	test_config_heartbeat();
+
+	/* Print FW Version by Default */
+	printf("------ ESP-Hosted FW [%s] ------\n", test_get_fw_version(version));
 
 	for (int test_count=0; test_count<stress_test_count; test_count++) {
 		printf("\n\nIteration %u:\n",test_count+1);
@@ -155,6 +159,9 @@ int main(int argc, char *argv[])
 			} else if (0 == strncasecmp(GET_WIFI_CURR_TX_POWER, argv[i],
 						sizeof(GET_WIFI_CURR_TX_POWER))) {
 				test_wifi_get_curr_tx_power();
+			} else if (0 == strncasecmp(GET_FW_VERSION, argv[i],
+						sizeof(GET_FW_VERSION))) {
+				test_print_fw_version();
 			} else if (0 == strncasecmp(OTA, argv[i], sizeof(OTA))) {
 				/* OTA ESP flashing */
 				printf("OTA binary path:%s\n",argv[i+1]);

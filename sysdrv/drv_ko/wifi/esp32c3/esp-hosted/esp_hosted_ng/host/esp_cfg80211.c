@@ -4,6 +4,7 @@
  *
  * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
  *
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 #include "utils.h"
 #include "esp.h"
@@ -93,6 +94,8 @@ static struct ieee80211_supported_band esp_wifi_bands = {
 	.n_channels = ARRAY_SIZE(esp_channels_2ghz),
 	.bitrates = esp_rates,
 	.n_bitrates = ARRAY_SIZE(esp_rates),
+	.ht_cap.cap = IEEE80211_HT_CAP_SGI_20,
+	.ht_cap.ht_supported = true,
 };
 
 /* Supported crypto cipher suits to be advertised to cfg80211 */
@@ -103,6 +106,19 @@ static const u32 esp_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_CCMP,
 	WLAN_CIPHER_SUITE_SMS4,
 	WLAN_CIPHER_SUITE_AES_CMAC,
+};
+
+static const u32 esp_cipher_suites_new[] = {
+	WLAN_CIPHER_SUITE_WEP40,
+	WLAN_CIPHER_SUITE_WEP104,
+	WLAN_CIPHER_SUITE_TKIP,
+	WLAN_CIPHER_SUITE_SMS4,
+	WLAN_CIPHER_SUITE_GCMP,
+	WLAN_CIPHER_SUITE_CCMP,
+	WLAN_CIPHER_SUITE_GCMP_256,
+	WLAN_CIPHER_SUITE_AES_CMAC,
+	WLAN_CIPHER_SUITE_BIP_GMAC_128,
+	WLAN_CIPHER_SUITE_BIP_GMAC_256,
 };
 
 static const struct wiphy_wowlan_support esp_wowlan_support = {
@@ -142,28 +158,32 @@ static int esp_inetaddr_event(struct notifier_block *nb,
 {
 	struct in_ifaddr *ifa = data;
 	struct net_device *netdev = ifa->ifa_dev ? ifa->ifa_dev->dev : NULL;
-	struct esp_wifi_device *priv = netdev_priv(netdev);
+	struct esp_wifi_device *priv;
+	struct esp_adapter *adapter = esp_get_adapter();
+	struct esp_wifi_device *esp_priv = adapter->priv[0];
 
-	esp_verbose("------- IP event -------\n");
-
-	if (!strstr(netdev->name, "espsta")) {
+	if (!netdev)
 		return 0;
-	}
+
+	esp_verbose("------- IP event for interface %s -------\n", netdev->name);
+
+	priv = netdev_priv(netdev);
+	if (esp_priv != priv)
+		return 0;
 
 	switch (event) {
 
 	case NETDEV_UP:
-		if (priv && (priv->if_type == ESP_STA_IF)) {
+		esp_info("NETDEV_UP interface %s ip changed to  %pi4\n",
+				netdev->name, &ifa->ifa_local);
+		if (priv && (priv->if_type == ESP_STA_IF))
 			cmd_set_ip_address(priv, ifa->ifa_local);
-			esp_info("NETDEV_UP interface %s ip changed to  %pi4\n",
-					netdev->name, &ifa->ifa_local);
-		}
 		break;
 
 	case NETDEV_DOWN:
 		if (priv && (priv->if_type == ESP_STA_IF)) {
 			cmd_set_ip_address(priv, 0);
-			esp_info("Interface Down: %d\n", priv->if_type);
+			esp_info("Interface %s Down: %d\n", netdev->name, priv->if_type);
 		}
 		break;
 	}
@@ -232,13 +252,18 @@ struct wireless_dev *esp_cfg80211_add_iface(struct wiphy *wiphy,
 	esp_wdev->stop_data = 1;
 	esp_wdev->port_open = 0;
 
+#ifdef TODO
+	if (cmd_update_fw_time(esp_wdev))
+		goto free_and_return;
+#endif
+
 	if (cmd_init_interface(esp_wdev))
 		goto free_and_return;
 
 	if (cmd_get_mac(esp_wdev))
 		goto free_and_return;
 
-	eth_hw_addr_set(ndev, esp_wdev->mac_address);
+	ETH_HW_ADDR_SET(ndev, esp_wdev->mac_address);
 
 	esp_init_priv(ndev);
 
@@ -247,7 +272,6 @@ struct wireless_dev *esp_cfg80211_add_iface(struct wiphy *wiphy,
 
 
 	set_bit(ESP_NETWORK_UP, &esp_wdev->priv_flags);
-	clear_bit(ESP_CLEANUP_IN_PROGRESS, &esp_dev->adapter->state_flags);
 
 	esp_wdev->nb.notifier_call = esp_inetaddr_event;
 	register_inetaddr_notifier(&esp_wdev->nb);
@@ -270,15 +294,75 @@ static int esp_cfg80211_del_iface(struct wiphy *wiphy,
 {
 	return 0;
 }
+#endif
+
+static int esp_nl_mode_to_esp_iface(enum nl80211_iftype type)
+{
+	if (type == NL80211_IFTYPE_STATION) {
+		return ESP_STA_IF;
+	} else if (type == NL80211_IFTYPE_AP) {
+		return ESP_AP_IF;
+	}
+
+	return ESP_MAX_IF;
+}
+
+static int8_t esp_get_mode_from_iface_type(int iface_type) {
+	if (iface_type == ESP_AP_IF) {
+		return 2;
+	}
+
+	return 1;
+}
 
 static int esp_cfg80211_change_iface(struct wiphy *wiphy,
-							  struct net_device *ndev,
-							  enum nl80211_iftype type,
-							  struct vif_params *params)
+					struct net_device *dev,
+					enum nl80211_iftype type,
+					struct vif_params *params)
 {
-	return 0;
+	struct esp_wifi_device *priv = NULL;
+	enum ESP_INTERFACE_TYPE esp_if_type;
+	int ret;
+
+	if (!wiphy || !dev) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	priv = netdev_priv(dev);
+	if (!priv) {
+		esp_err("empty priv\n");
+		return -EINVAL;
+	}
+
+	esp_if_type = esp_nl_mode_to_esp_iface(type);
+	esp_info("current iface type=%d new iface type=%d\n", priv->if_type, esp_if_type);
+	if (esp_if_type == ESP_MAX_IF) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	if (esp_if_type == priv->if_type) {
+		esp_info("%u operating in same mode\n", __LINE__);
+		return 0;
+	}
+
+	ret = cmd_set_mode(priv, esp_get_mode_from_iface_type(esp_if_type));
+
+	if (ret == 0) {
+		priv->if_type = esp_if_type;
+		priv->wdev.iftype = type;
+		/* update Mac address of interface */
+		cmd_get_mac(priv);
+		ETH_HW_ADDR_SET(dev, priv->mac_address/*mac_addr->sa_data*/);
+	}
+
+	esp_info("wdev iftype=%d, ret=%d\n", priv->wdev.iftype, ret);
+	if (esp_if_type == ESP_AP_IF)
+		esp_port_open(priv);
+
+	return ret;
 }
-#endif
 
 static int esp_cfg80211_scan(struct wiphy *wiphy,
 		struct cfg80211_scan_request *request)
@@ -286,6 +370,7 @@ static int esp_cfg80211_scan(struct wiphy *wiphy,
 
 	struct net_device *ndev = NULL;
 	struct esp_wifi_device *priv = NULL;
+
 	if (!wiphy || !request || !request->wdev || !request->wdev->netdev) {
 		esp_info("%u invalid input\n", __LINE__);
 		return -EINVAL;
@@ -319,8 +404,41 @@ static int esp_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 }
 #endif
 
-static ESP_MGMT_TX_PROTOTYPE()
+static int esp_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0))
+				struct ieee80211_channel *chan,
+				bool offchan, unsigned int wait, const u8 *buf, size_t len,
+				bool no_cck, bool dont_wait_for_ack,
+#else
+				struct cfg80211_mgmt_tx_params *params,
+#endif
+		u64 *cookie)
 {
+	struct esp_wifi_device *priv = NULL;
+
+	if (!wiphy || !wdev || !params) {
+		esp_info("%u invalid input\n", __LINE__);
+		return -EINVAL;
+	}
+
+	priv = netdev_priv(wdev->netdev);
+
+	if (!priv) {
+		esp_err("empty priv\n");
+		return 0;
+	}
+
+	return cmd_mgmt_request(priv, params);
+}
+
+static int esp_cfg80211_set_ap_chanwidth(struct wiphy *wiphy,
+					 struct net_device *dev,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2))
+					 unsigned int link_id,
+#endif
+					 struct cfg80211_chan_def *chandef)
+{
+	esp_info("%u \n", __LINE__);
 	return 0;
 }
 
@@ -342,6 +460,12 @@ static int esp_cfg80211_set_default_key(struct wiphy *wiphy,
 	}
 
 	return cmd_set_default_key(priv, key_index);
+}
+
+static int esp_cfg80211_set_default_mgmt_key(struct wiphy *wiphy,
+					     struct net_device *ndev, INT_LINK_ID u8 key_index)
+{
+	return 0;
 }
 
 static int esp_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
@@ -393,7 +517,7 @@ static int esp_cfg80211_disconnect(struct wiphy *wiphy,
 	}
 	esp_dbg("\n");
 
-	return cmd_disconnect_request(priv, reason_code);
+	return cmd_disconnect_request(priv, reason_code, NULL);
 }
 
 static int esp_cfg80211_authenticate(struct wiphy *wiphy, struct net_device *dev,
@@ -459,7 +583,7 @@ static int esp_cfg80211_deauth(struct wiphy *wiphy, struct net_device *dev,
 		return 0;
 	}
 
-	return cmd_disconnect_request(priv, req->reason_code);
+	return cmd_disconnect_request(priv, req->reason_code, req->bssid);
 }
 
 static int esp_cfg80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
@@ -480,7 +604,11 @@ static int esp_cfg80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
 		return 0;
 	}
 
-	return cmd_disconnect_request(priv, req->reason_code);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0))
+	return cmd_disconnect_request(priv, req->reason_code, req->ap_addr);
+#else
+	return cmd_disconnect_request(priv, req->reason_code, req->bss->bssid);
+#endif
 }
 
 static int esp_cfg80211_suspend(struct wiphy *wiphy,
@@ -596,6 +724,7 @@ static int esp_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev
 	if (wireless_dev_current_bss_exists(&priv->wdev)) {
 
 		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		cmd_get_rssi(priv);
 		sinfo->signal = priv->rssi;
 
 		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES);
@@ -634,9 +763,303 @@ static int esp_cfg80211_get_tx_power(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 	/* Update Tx power from firmware */
-	//cmd_get_tx_power(priv);
+	cmd_get_tx_power(priv);
 
 	*dbm = esp_pwr_to_dbm(priv->tx_pwr);
+
+	return 0;
+}
+
+static int esp_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+{
+	esp_dbg("\n");
+	return 0;
+}
+
+static int esp_cfg80211_set_txq_params(struct wiphy *wiphy, struct net_device *ndev,
+			      struct ieee80211_txq_params *params)
+{
+	esp_dbg("\n");
+	return 0;
+}
+
+static int esp_set_ies(struct esp_wifi_device *priv, struct cfg80211_beacon_data *info)
+{
+	int ret;
+
+	ret = cmd_set_ie(priv, IE_BEACON, info->beacon_ies, info->beacon_ies_len);
+
+	if (!ret)
+		ret = cmd_set_ie(priv, IE_PROBE_RESP, info->proberesp_ies, info->proberesp_ies_len);
+
+	if (!ret)
+		ret = cmd_set_ie(priv, IE_ASSOC_RESP, info->assocresp_ies, info->assocresp_ies_len);
+
+	return ret;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0))
+static int esp_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
+				   struct  cfg80211_ap_update *params)
+{
+	struct cfg80211_beacon_data *info = &params->beacon;
+#else
+static int esp_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
+				   struct cfg80211_beacon_data *info)
+{
+#endif
+	struct esp_wifi_device *priv = NULL;
+
+	if (!wiphy || !ndev) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	priv = netdev_priv(ndev);
+	if (!priv) {
+		esp_err("empty priv\n");
+		return -EINVAL;
+	}
+
+	if (priv->if_type != ESP_AP_IF) {
+		esp_err("Interface type is not AP\n");
+		return -EINVAL;
+	}
+
+	return esp_set_ies(priv, info);
+}
+
+static const uint8_t *esp_get_rsn_ie(struct cfg80211_beacon_data *beacon, size_t *rsn_ie_len)
+{
+        const u8 *rsn_ie;
+
+        if (!beacon->tail)
+                return NULL;
+
+        rsn_ie = cfg80211_find_ie(WLAN_EID_RSN, beacon->tail, beacon->tail_len);
+        if (!rsn_ie)
+                return NULL;
+
+        *rsn_ie_len = *(rsn_ie + 1);
+	*rsn_ie_len += 2;
+
+        return rsn_ie;
+}
+
+static const uint8_t *esp_get_rsnx_ie(struct cfg80211_beacon_data *beacon, size_t *rsnx_ie_len)
+{
+        const u8 *rsnx_ie = NULL;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+        if (!beacon->tail)
+                return NULL;
+
+        rsnx_ie = cfg80211_find_ie(WLAN_EID_RSNX, beacon->tail, beacon->tail_len);
+        if (!rsnx_ie)
+                return NULL;
+
+        *rsnx_ie_len = *(rsnx_ie + 1);
+	*rsnx_ie_len += 2;
+#endif
+
+        return rsnx_ie;
+}
+
+static int esp_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
+				 struct cfg80211_ap_settings *info)
+{
+	struct esp_wifi_device *priv = NULL;
+	struct ieee80211_mgmt *mgmt;
+	u8 *ies;
+	struct esp_ap_config ap_config = {0};
+	int res;
+	int i;
+	size_t rsn_ie_len = 0;
+	size_t rsnx_ie_len = 0;
+	const uint8_t *rsn_ie;
+	const uint8_t *rsnx_ie;
+
+	if (!wiphy || !dev) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	priv = netdev_priv(dev);
+	if (!priv) {
+		esp_err("empty priv\n");
+		return -EINVAL;
+	}
+
+	if (priv->if_type != ESP_AP_IF) {
+		esp_err("Interface type is not AP\n");
+		return -EINVAL;
+	}
+
+	esp_dbg("\n");
+
+	res = esp_set_ies(priv, &info->beacon);
+
+	ap_config.beacon_interval = info->beacon_interval;
+	//ap_config.dtim_period = info->dtim_period;
+
+	if (info->beacon.head == NULL)
+		return -EINVAL;
+	mgmt = (struct ieee80211_mgmt *) info->beacon.head;
+	ies = mgmt->u.beacon.variable;
+	if (ies > info->beacon.head + info->beacon.head_len)
+		return -EINVAL;
+
+	if (info->ssid == NULL)
+		return -EINVAL;
+	memcpy(ap_config.ssid, info->ssid, info->ssid_len);
+	ap_config.ssid_len = info->ssid_len;
+	if (info->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE)
+		ap_config.ssid_hidden = 1;
+
+	//TODO set in vnc
+	if (info->inactivity_timeout) {
+		ap_config.inactivity_timeout = info->inactivity_timeout;
+	}
+
+	if (info->chandef.chan) {
+		for (i = 0; i < ARRAY_SIZE(esp_channels_2ghz); i++) {
+			if (esp_channels_2ghz[i].center_freq == info->chandef.chan->center_freq) {
+				ap_config.channel = esp_channels_2ghz[i].hw_value;
+				break;
+			}
+		}
+	}
+	if (!ap_config.channel)
+		ap_config.channel = 6;
+
+	//TODO ht and vht caps
+	rsn_ie = esp_get_rsn_ie(&info->beacon, &rsn_ie_len);
+	rsnx_ie = esp_get_rsnx_ie(&info->beacon, &rsnx_ie_len);
+	if (rsn_ie_len || rsnx_ie_len) {
+		size_t rsn_len = rsn_ie_len + rsnx_ie_len;
+		uint8_t *rsn = kmalloc(rsn_ie_len + rsnx_ie_len, GFP_KERNEL);
+		if (!rsn) {
+			return -1;
+		}
+		if (rsn_ie_len)
+			memcpy(rsn, rsn_ie, rsn_ie_len);
+		if (rsnx_ie_len)
+			memcpy(rsn + rsn_ie_len, rsnx_ie, rsnx_ie_len);
+
+		res = cmd_set_ie(priv, IE_RSN, rsn, rsn_len);
+
+		kfree(rsn);
+		/* Dummy mode set set security */
+#define WPA2_PSK_MODE 3
+		ap_config.authmode = WPA2_PSK_MODE;
+#undef WPA2_PSK_MODE
+		if (res < 0)
+			return res;
+	}
+	res = cmd_set_ap_config(priv, &ap_config);
+	if (res < 0)
+		return res;
+
+	return 0;
+}
+
+static int esp_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+				, unsigned int link_id
+#endif
+                                )
+{
+	if (!wiphy || !dev) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
+static void esp_cfg80211_mgmt_frame_registrations(struct wiphy *wiphy,
+						  struct wireless_dev *wdev,
+						  struct mgmt_frame_regs *upd)
+{
+	/* We will forward all the mgmt frame to userspace by default */
+}
+#endif
+
+static int esp_cfg80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
+                                  const u8 *peer, u64 *cookie)
+{
+
+	if (!wiphy || !dev) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int esp_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+					struct station_del_parameters *params)
+{
+	struct esp_wifi_device *priv = NULL;
+
+	if (!wiphy || !dev) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	priv = netdev_priv(dev);
+	if (!priv) {
+		esp_err("empty priv\n");
+		return -EINVAL;
+	}
+	if (priv->if_type == ESP_AP_IF)
+		return cmd_disconnect_request(priv, params->reason_code, params->mac);
+
+	return 0;
+}
+
+static int esp_cfg80211_add_station(struct wiphy *wiphy, struct net_device *dev,
+				    const u8 *mac,
+				    struct station_parameters *params)
+{
+	struct esp_wifi_device *priv = NULL;
+
+	if (!wiphy || !dev) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	priv = netdev_priv(dev);
+	if (!priv) {
+		esp_err("empty priv\n");
+		return -EINVAL;
+	}
+
+	if (priv->if_type == ESP_AP_IF)
+		cmd_add_station(priv, mac, params, false);
+
+	return 0;
+}
+
+static int esp_cfg80211_change_station(struct wiphy *wiphy,
+				       struct net_device *dev, const u8 *mac,
+				       struct station_parameters *params)
+{
+	struct esp_wifi_device *priv = NULL;
+
+	if (!wiphy || !dev) {
+		esp_err("%u invalid params\n", __LINE__);
+		return -EINVAL;
+	}
+
+	priv = netdev_priv(dev);
+	if (!priv) {
+		esp_err("empty priv\n");
+		return -EINVAL;
+	}
+	if (priv->if_type == ESP_AP_IF)
+		return cmd_add_station(priv, mac, params, true);
 
 	return 0;
 }
@@ -645,14 +1068,15 @@ static struct cfg80211_ops esp_cfg80211_ops = {
 #if 0
 	.add_virtual_intf = esp_cfg80211_add_iface,
 	.del_virtual_intf = esp_cfg80211_del_iface,
-	.change_virtual_intf = esp_cfg80211_change_iface,
 #endif
+	.change_virtual_intf = esp_cfg80211_change_iface,
 	.scan = esp_cfg80211_scan,
 	/*.connect = esp_cfg80211_connect,*/
 	.disconnect = esp_cfg80211_disconnect,
 	.add_key = esp_cfg80211_add_key,
 	.del_key = esp_cfg80211_del_key,
 	.set_default_key = esp_cfg80211_set_default_key,
+	.set_default_mgmt_key = esp_cfg80211_set_default_mgmt_key,
 	.mgmt_tx = esp_cfg80211_mgmt_tx,
 	.auth = esp_cfg80211_authenticate,
 	.deauth = esp_cfg80211_deauth,
@@ -663,7 +1087,34 @@ static struct cfg80211_ops esp_cfg80211_ops = {
 	.set_wakeup = esp_cfg80211_set_wakeup,
 	.set_tx_power = esp_cfg80211_set_tx_power,
 	.get_tx_power = esp_cfg80211_get_tx_power,
+	.set_wiphy_params = esp_cfg80211_set_wiphy_params,
+	.set_txq_params = esp_cfg80211_set_txq_params,
+	.change_beacon = esp_cfg80211_change_beacon,
+	.start_ap = esp_cfg80211_start_ap,
+	.stop_ap = esp_cfg80211_stop_ap,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
+	.update_mgmt_frame_registrations = esp_cfg80211_mgmt_frame_registrations,
+#endif
+	.probe_client = esp_cfg80211_probe_client,
+	.del_station = esp_cfg80211_del_station,
+	.add_station = esp_cfg80211_add_station,
+	.change_station = esp_cfg80211_change_station,
 	.get_station = esp_cfg80211_get_station,
+	.set_ap_chanwidth = esp_cfg80211_set_ap_chanwidth
+};
+
+static const struct ieee80211_txrx_stypes
+esp_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
+	[NL80211_IFTYPE_AP] = {
+		.tx = 0xffff,
+		.rx = BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
+			BIT(IEEE80211_STYPE_REASSOC_REQ >> 4) |
+			BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+			BIT(IEEE80211_STYPE_DISASSOC >> 4) |
+			BIT(IEEE80211_STYPE_AUTH >> 4) |
+			BIT(IEEE80211_STYPE_DEAUTH >> 4) |
+			BIT(IEEE80211_STYPE_ACTION >> 4),
+	},
 };
 
 static void esp_reg_notifier(struct wiphy *wiphy,
@@ -750,11 +1201,21 @@ int esp_add_wiphy(struct esp_adapter *adapter)
 	set_wiphy_dev(wiphy, esp_dev->dev);
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+#ifdef CONFIG_AP_MODE
+	wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
+#endif
 	wiphy->bands[NL80211_BAND_2GHZ] = &esp_wifi_bands;
 
 	/* Initialize cipher suits */
-	wiphy->cipher_suites = esp_cipher_suites;
-	wiphy->n_cipher_suites = ARRAY_SIZE(esp_cipher_suites);
+	if (adapter->chipset == ESP_FIRMWARE_CHIP_ESP32C3 ||
+	    adapter->chipset == ESP_FIRMWARE_CHIP_ESP32S3 ||
+	    adapter->chipset == ESP_FIRMWARE_CHIP_ESP32C6) {
+		wiphy->cipher_suites = esp_cipher_suites_new;
+		wiphy->n_cipher_suites = ARRAY_SIZE(esp_cipher_suites_new);
+	} else {
+		wiphy->cipher_suites = esp_cipher_suites;
+		wiphy->n_cipher_suites = ARRAY_SIZE(esp_cipher_suites);
+	}
 
 	/* TODO: check and finalize the numbers */
 	wiphy->max_scan_ssids = 10;
@@ -765,11 +1226,18 @@ int esp_add_wiphy(struct esp_adapter *adapter)
 #ifdef CONFIG_PM
 	wiphy->wowlan = &esp_wowlan_support;
 #endif
+	wiphy->mgmt_stypes = esp_default_mgmt_stypes;
 
 	/* Advertise SAE support */
 	wiphy->features |= NL80211_FEATURE_SAE;
 
 	wiphy->reg_notifier = esp_reg_notifier;
+
+	/* set caps */
+	wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
+	wiphy->flags |= WIPHY_FLAG_REPORTS_OBSS;
+	//wiphy->features |= NL80211_CMD_PROBE_CLIENT;
+	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS;
 
 	ret = wiphy_register(wiphy);
 
@@ -805,6 +1273,5 @@ int esp_mark_scan_done_and_disconnect(struct esp_wifi_device *priv, uint8_t loca
 		return 0;
 
 	ESP_MARK_SCAN_DONE(priv, true);
-	ESP_CANCEL_SCHED_SCAN();
 	return esp_mark_disconnect(priv, 0, locally_disconnect);
 }

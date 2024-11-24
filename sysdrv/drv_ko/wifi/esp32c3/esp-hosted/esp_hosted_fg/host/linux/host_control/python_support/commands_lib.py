@@ -17,6 +17,7 @@ from hosted_py_header import *
 import commands_map_py_to_c
 from time import *
 import requests
+import sys
 
 WIFI_VENDOR_IE_ELEMENT_ID = 0xDD
 OFFSET = 4
@@ -24,6 +25,18 @@ VENDOR_OUI_0 = 1
 VENDOR_OUI_1 = 2
 VENDOR_OUI_2 = 3
 VENDOR_OUI_TYPE = 22
+
+### Enable WiFi Feature needs to get the Mac Addr to configure the interface
+### So we store it here after getting the Mac Addr
+global_mac_addr_str = ""
+
+def get_mac_addr_str():
+	global global_mac_addr_str
+	return global_mac_addr_str
+
+def store_mac_addr_str(mac_addr_str):
+	global global_mac_addr_str
+	global_mac_addr_str = mac_addr_str
 
 def get_timestamp():
 	tm = gmtime()
@@ -87,14 +100,44 @@ def ctrl_app_event_callback(app_event):
 		print(s +" APP EVENT: Heartbeat event "+
 				str(app_event.contents.control_data.e_heartbeat.hb_num))
 
+	elif app_event.contents.msg_id == CTRL_MSGID.CTRL_EVENT_STATION_CONNECTED_TO_AP.value:
+		ssid = app_event.contents.control_data.e_sta_conn.ssid
+		ssid_len = app_event.contents.control_data.e_sta_conn.ssid_len
+		bssid = app_event.contents.control_data.e_sta_conn.bssid
+		channel = app_event.contents.control_data.e_sta_conn.channel
+		authmode = app_event.contents.control_data.e_sta_conn.authmode
+		aid = app_event.contents.control_data.e_sta_conn.aid
+
+		print(s +" APP EVENT: Station mode: Connected to ssid[" + get_str(ssid) + "] bssid [" +
+			get_str(bssid) + "] channel [" + str(channel) + "] authmode [" + str(authmode) +
+			"] aid [" + str(aid) + "]")
+
 	elif app_event.contents.msg_id == CTRL_MSGID.CTRL_EVENT_STATION_DISCONNECT_FROM_AP.value:
-		print(s +" APP EVENT: Station mode: Disconnect Reason "+
-				str(int.from_bytes(app_event.contents.resp_event_status, 'big')))
+		ssid = app_event.contents.control_data.e_sta_disconn.ssid
+		ssid_len = app_event.contents.control_data.e_sta_disconn.ssid_len
+		bssid = app_event.contents.control_data.e_sta_disconn.bssid
+		reason = app_event.contents.control_data.e_sta_disconn.reason
+		rssi = app_event.contents.control_data.e_sta_disconn.rssi
+
+		print(s +" APP EVENT: Station mode: Disconnected from ssid[" + get_str(ssid) + "] bssid [" +
+			get_str(bssid) + "] reason [" + str(reason) + "] rssi [" + str(rssi) + "]")
+
+	elif app_event.contents.msg_id == CTRL_MSGID.CTRL_EVENT_STATION_CONNECTED_TO_ESP_SOFTAP.value:
+		aid = app_event.contents.control_data.e_softap_sta_conn.aid
+		is_mesh_child = app_event.contents.control_data.e_softap_sta_conn.is_mesh_child
+		p = app_event.contents.control_data.e_softap_sta_conn.mac
+		if p and len(p):
+			print(s +" APP EVENT: Connected to SoftAP MAC ["+get_str(p)+"] aid [" +
+				str(aid) + "] is_mesh_child [" +str(is_mesh_child) + "]");
 
 	elif app_event.contents.msg_id == CTRL_MSGID.CTRL_EVENT_STATION_DISCONNECT_FROM_ESP_SOFTAP.value:
-		p = app_event.contents.control_data.e_sta_disconnected.mac
+		aid = app_event.contents.control_data.e_softap_sta_disconn.aid
+		is_mesh_child = app_event.contents.control_data.e_softap_sta_disconn.is_mesh_child
+		reason = app_event.contents.control_data.e_softap_sta_disconn.reason
+		p = app_event.contents.control_data.e_softap_sta_disconn.mac
 		if p and len(p):
-			print(s +" APP EVENT: SoftAP mode: Disconnect MAC ["+get_str(p)+"]")
+			print(s +" APP EVENT: Disconnected from SoftAP MAC ["+get_str(p)+"] aid [" +
+				str(aid) + "] is_mesh_child [" +str(is_mesh_child) + "] reason [" + str(reason) + "]")
 	else:
 		print(s+" Invalid event ["+str(app_event.contents.msg_id)+"] to parse")
 
@@ -193,12 +236,7 @@ def process_failed_responses(app_msg):
 	elif (app_msg.contents.msg_id == CTRL_MSGID.CTRL_RESP_OTA_END.value):
 		print("OTA failed in OTA end")
 	elif (app_msg.contents.msg_id == CTRL_MSGID.CTRL_RESP_CONNECT_AP.value):
-		if (app_msg.contents.resp_event_status == CTRL_ERR.CTRL_ERR_NO_AP_FOUND.value):
-			print("SSID : not found/connectable")
-		elif (app_msg.contents.resp_event_status == CTRL_ERR.CTRL_ERR_INVALID_PASSWORD.value):
-			print("Invalid password for SSID")
-		else:
-			print("Failed to connect with AP")
+		print("Failed to connect with AP, reason [" + str(app_msg.contents.resp_event_status) + "]")
 	elif (app_msg.contents.msg_id == CTRL_MSGID.CTRL_RESP_START_SOFTAP.value):
 		print("Failed to start SoftAP")
 	elif (app_msg.contents.msg_id == CTRL_MSGID.CTRL_RESP_STOP_SOFTAP.value):
@@ -387,7 +425,9 @@ def ctrl_app_resp_callback(app_resp):
 
 
 	if (app_resp.contents.msg_id == CTRL_MSGID.CTRL_RESP_GET_MAC_ADDR.value) :
-		print("mac address is "+ get_str(app_resp.contents.control_data.wifi_mac.mac))
+		mac_str = get_str(app_resp.contents.control_data.wifi_mac.mac)
+		print("mac address is " + mac_str)
+		store_mac_addr_str(mac_str)
 
 	elif (app_resp.contents.msg_id == CTRL_MSGID.CTRL_RESP_SET_MAC_ADDRESS.value) :
 		print("MAC address is set")
@@ -449,6 +489,7 @@ def ctrl_app_resp_callback(app_resp):
 			print("AP's channel number \""+str(ap_config_p.contents.channel)+"\"")
 			print("AP's rssi \""+str(ap_config_p.contents.rssi)+"\"")
 			print("AP's encryption mode \""+str(ap_config_p.contents.encryption_mode)+"\"")
+			print("AP's band mode \""+str(ap_config_p.contents.band_mode)+"\"")
 		else:
 			print("Station mode status: "+get_str(ap_config_p.contents.status))
 
@@ -459,7 +500,7 @@ def ctrl_app_resp_callback(app_resp):
 			return FAILURE
 
 	elif (app_resp.contents.msg_id == CTRL_MSGID.CTRL_RESP_START_SOFTAP.value) :
-		print("esp32 softAP started")
+		print("esp32 softAP started with band_mode "+str(app_resp.contents.control_data.wifi_softap_config.band_mode))
 		if (process_resp_start_softap(app_resp)):
 			fail_resp(app_resp)
 			return FAILURE
@@ -474,6 +515,7 @@ def ctrl_app_resp_callback(app_resp):
 		print("softAP max connections \""+str(softap_config_p.contents.max_connections)+"\"")
 		print("softAP hide ssid \""+str(softap_config_p.contents.ssid_hidden)+"\"")
 		print("softAP bandwidth \""+str(softap_config_p.contents.bandwidth)+"\"")
+		print("softAP band mode \""+str(softap_config_p.contents.band_mode)+"\"")
 
 	elif (app_resp.contents.msg_id == CTRL_MSGID.CTRL_RESP_GET_SOFTAP_CONN_STA_LIST.value) :
 		count = app_resp.contents.control_data.wifi_softap_con_sta.count
@@ -531,6 +573,13 @@ def ctrl_app_resp_callback(app_resp):
 	elif (app_resp.contents.msg_id == CTRL_MSGID.CTRL_RESP_CONFIG_HEARTBEAT.value) :
 		print("Heartbeat operation successful")
 
+	elif (app_resp.contents.msg_id == CTRL_MSGID.CTRL_RESP_GET_FW_VERSION.value) :
+		version_string = app_resp.contents.control_data.fw_version.project_name.decode('utf-8') + "-" + str(app_resp.contents.control_data.fw_version.major_1) + "." + str(app_resp.contents.control_data.fw_version.major_2) + "." + str(app_resp.contents.control_data.fw_version.minor) + "." + str(app_resp.contents.control_data.fw_version.revision_patch_1) + "." + str(app_resp.contents.control_data.fw_version.revision_patch_2)
+		print(version_string, end='')
+
+	elif (app_resp.contents.msg_id == CTRL_MSGID.CTRL_RESP_ENABLE_DISABLE.value) :
+		pass
+
 	else :
 		print("Invalid Response "+ str(app_resp.contents.msg_id) +" to parse")
 
@@ -558,11 +607,27 @@ def subscribe_event_heartbeat():
 
 
 
+def subscribe_event_sta_connected_to_ap():
+	if (CALLBACK_SET_SUCCESS != commands_map_py_to_c.set_event_callback(
+		CTRL_MSGID.CTRL_EVENT_STATION_CONNECTED_TO_AP.value, ctrl_app_event_cb)):
+		print("event not subscribed for station connected to AP")
+	print("notifications enabled for station connected to AP")
+
+
+
 def subscribe_event_sta_disconnect_from_ap():
 	if (CALLBACK_SET_SUCCESS != commands_map_py_to_c.set_event_callback(
 		CTRL_MSGID.CTRL_EVENT_STATION_DISCONNECT_FROM_AP.value, ctrl_app_event_cb)):
 		print("event not subscribed for station disconnection from AP")
 	print("notifications enabled for station disconnection from AP")
+
+
+
+def subscribe_event_sta_connected_to_softap():
+	if (CALLBACK_SET_SUCCESS != commands_map_py_to_c.set_event_callback(
+		CTRL_MSGID.CTRL_EVENT_STATION_CONNECTED_TO_ESP_SOFTAP.value, ctrl_app_event_cb)):
+		print("event not subscribed for station connected to ESP softAP")
+	print("notifications enabled for station connected to ESP softAP")
 
 
 
@@ -590,11 +655,27 @@ def unsubscribe_event_heartbeat():
 
 
 
+def unsubscribe_event_sta_connected_to_ap():
+	if (CALLBACK_SET_SUCCESS != commands_map_py_to_c.reset_event_callback(
+		CTRL_MSGID.CTRL_EVENT_STATION_CONNECTED_TO_AP.value)):
+		print("stop subscription failed for station connected to AP")
+	print("notifications disabled for station connected to AP")
+
+
+
 def unsubscribe_event_sta_disconnect_from_ap():
 	if (CALLBACK_SET_SUCCESS != commands_map_py_to_c.reset_event_callback(
 		CTRL_MSGID.CTRL_EVENT_STATION_DISCONNECT_FROM_AP.value)):
 		print("stop subscription failed for station disconnection from AP")
 	print("notifications disabled for station disconnection from AP")
+
+
+
+def unsubscribe_event_sta_connected_to_softap():
+	if (CALLBACK_SET_SUCCESS != commands_map_py_to_c.reset_event_callback(
+		CTRL_MSGID.CTRL_EVENT_STATION_CONNECTED_TO_ESP_SOFTAP.value)):
+		print("stop subscription failed for station connected to ESP softAP")
+	print("notifications disabled for station connected to ESP softAP")
 
 
 
@@ -606,37 +687,24 @@ def unsubscribe_event_sta_disconnect_from_softap():
 
 
 
-def register_event_callbacks():
-	ret = SUCCESS
-	evt = 0
-	events = []
+def register_all_event_callbacks():
+	subscribe_event_esp_init()
+	subscribe_event_heartbeat()
+	subscribe_event_sta_connected_to_ap()
+	subscribe_event_sta_disconnect_from_ap()
+	subscribe_event_sta_connected_to_softap()
+	subscribe_event_sta_disconnect_from_softap()
 
-	ESP_INIT = c_int()
-	ESP_INIT.value = CTRL_MSGID.CTRL_EVENT_ESP_INIT.value
 
-	HEARTBEAT = c_int()
-	HEARTBEAT.value = CTRL_MSGID.CTRL_EVENT_HEARTBEAT.value
+def unregister_all_event_callbacks():
+	unsubscribe_event_esp_init()
+	unsubscribe_event_heartbeat()
+	unsubscribe_event_sta_connected_to_ap()
+	unsubscribe_event_sta_disconnect_from_ap()
+	unsubscribe_event_sta_connected_to_softap()
+	unsubscribe_event_sta_disconnect_from_softap()
 
-	STATION_DISCONNECT_FROM_AP = c_int()
-	STATION_DISCONNECT_FROM_AP.value = \
-                CTRL_MSGID.CTRL_EVENT_STATION_DISCONNECT_FROM_AP.value
 
-	STATION_DISCONNECT_FROM_ESP_SOFTAP = c_int()
-	STATION_DISCONNECT_FROM_ESP_SOFTAP.value = \
-                CTRL_MSGID.CTRL_EVENT_STATION_DISCONNECT_FROM_ESP_SOFTAP.value
-
-	events.append(EVENT_CALLBACK_TABLE_T(ESP_INIT, ctrl_app_event_cb))
-	events.append(EVENT_CALLBACK_TABLE_T(HEARTBEAT, ctrl_app_event_cb))
-	events.append(EVENT_CALLBACK_TABLE_T(STATION_DISCONNECT_FROM_AP, ctrl_app_event_cb))
-	events.append(EVENT_CALLBACK_TABLE_T(STATION_DISCONNECT_FROM_ESP_SOFTAP, ctrl_app_event_cb))
-
-	for i in range(0, len(events)):
-		if (CALLBACK_SET_SUCCESS != commands_map_py_to_c.set_event_callback(events[i].event,
-				events[i].fun)):
-			print("event callback register failed for event "+str(events[i].event))
-			ret = FAILURE
-			break
-	return ret
 
 
 
@@ -756,7 +824,7 @@ def test_sync_get_available_wifi():
 
 
 
-def test_async_station_mode_connect(ssid,pwd,bssid,use_wpa3,listen_interval):
+def test_async_station_mode_connect(ssid,pwd,bssid,use_wpa3,listen_interval,band_mode):
 	req = CONTROL_COMMAND()
 	CTRL_CMD_DEFAULT_REQ(req)
 
@@ -765,6 +833,7 @@ def test_async_station_mode_connect(ssid,pwd,bssid,use_wpa3,listen_interval):
 	req.control_data.wifi_ap_config.bssid = set_str(bssid)
 	req.control_data.wifi_ap_config.is_wpa3_supported =  use_wpa3
 	req.control_data.wifi_ap_config.listen_interval = listen_interval
+	req.control_data.wifi_ap_config.band_mode = band_mode
 	req.ctrl_resp_cb = ctrl_app_resp_cb
 
 	commands_map_py_to_c.wifi_connect_ap(req)
@@ -772,7 +841,7 @@ def test_async_station_mode_connect(ssid,pwd,bssid,use_wpa3,listen_interval):
 
 
 
-def test_sync_station_mode_connect(ssid,pwd,bssid,use_wpa3,listen_interval):
+def test_sync_station_mode_connect(ssid,pwd,bssid,use_wpa3,listen_interval,band_mode):
 	req = CONTROL_COMMAND()
 	CTRL_CMD_DEFAULT_REQ(req)
 	req.control_data.wifi_ap_config.ssid = set_str(str(ssid))
@@ -780,6 +849,7 @@ def test_sync_station_mode_connect(ssid,pwd,bssid,use_wpa3,listen_interval):
 	req.control_data.wifi_ap_config.bssid = set_str(bssid)
 	req.control_data.wifi_ap_config.is_wpa3_supported =  use_wpa3
 	req.control_data.wifi_ap_config.listen_interval = listen_interval
+	req.control_data.wifi_ap_config.band_mode = band_mode
 
 	resp = POINTER(CONTROL_COMMAND)
 	resp = None
@@ -809,18 +879,19 @@ def test_sync_station_mode_disconnect():
 
 
 
-def test_sync_softap_mode_start(ssid, pwd, channel, sec_prot, max_conn, hide_ssid, bw):
+def test_sync_softap_mode_start(ssid, pwd, channel, sec_prot, max_conn, hide_ssid, bw, band_mode):
 	req = CONTROL_COMMAND()
 	CTRL_CMD_DEFAULT_REQ(req)
 	resp = POINTER(CONTROL_COMMAND)
 	resp = None
 	req.control_data.wifi_softap_config.ssid = set_str(ssid)
-	req.control_data.wifi_softap_config.pwd = set_str(pwd)
+	req.control_data.wifi_softap_config.pwd = set_str(str(pwd))
 	req.control_data.wifi_softap_config.channel = channel
 	req.control_data.wifi_softap_config.encryption_mode = sec_prot
 	req.control_data.wifi_softap_config.max_connections = max_conn
 	req.control_data.wifi_softap_config.ssid_hidden = hide_ssid
 	req.control_data.wifi_softap_config.bandwidth = bw
+	req.control_data.wifi_softap_config.band_mode = band_mode
 	resp = commands_map_py_to_c.wifi_start_softap(req)
 	return ctrl_app_resp_callback(resp)
 
@@ -936,7 +1007,35 @@ def test_sync_wifi_get_curr_tx_power():
 	resp = commands_map_py_to_c.wifi_get_curr_tx_power(req)
 	return ctrl_app_resp_callback(resp)
 
+def test_feature_config(feature, enable):
+	req = CONTROL_COMMAND()
+	CTRL_CMD_DEFAULT_REQ(req)
+	resp = POINTER(CONTROL_COMMAND)
+	resp = None
+	req.control_data.feat_ena_disable.feature = feature
+	req.control_data.feat_ena_disable.enable = enable
+	resp = commands_map_py_to_c.feature_config(req)
+	return ctrl_app_resp_callback(resp)
 
+def test_feature_enable_wifi():
+	return test_feature_config(HOSTED_FEATURE.HOSTED_FEATURE_WIFI.value, YES)
+
+def test_feature_disable_wifi():
+	return test_feature_config(HOSTED_FEATURE.HOSTED_FEATURE_WIFI.value, NO)
+
+def test_feature_enable_bt():
+	return test_feature_config(HOSTED_FEATURE.HOSTED_FEATURE_BLUETOOTH.value, YES)
+
+def test_feature_disable_bt():
+	return test_feature_config(HOSTED_FEATURE.HOSTED_FEATURE_BLUETOOTH.value, NO)
+
+def test_get_fw_version():
+	req = CONTROL_COMMAND()
+	CTRL_CMD_DEFAULT_REQ(req)
+	resp = POINTER(CONTROL_COMMAND)
+	resp = None
+	resp = commands_map_py_to_c.get_fw_version(req)
+	return ctrl_app_resp_callback(resp)
 
 def test_sync_ota_begin():
 	req = CONTROL_COMMAND()

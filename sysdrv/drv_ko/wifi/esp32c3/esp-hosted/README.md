@@ -105,7 +105,7 @@ Following table summarizes this entire discussion.
   <tr>
     <td>Wi-Fi Mode</td>
     <td>Station, <span style="font-weight:bold">SoftAP</span></td>
-    <td>Station</td>
+    <td>Station, SoftAP</td>
   </tr>
   <tr>
     <td>Wi-Fi Security Protocols</td>
@@ -117,7 +117,7 @@ Following table summarizes this entire discussion.
   </tr>
   <tr>
     <td>Chipsets supported</td>
-    <td>ESP32, <span>ESP32-C2/C3/C6/S2/S3</span></td>
+    <td>ESP32, <span>ESP32-C2/C3/C5/C6/S2/S3</span></td>
     <td>ESP32, <span>ESP32-C2/C3/C6/S2/S3</span></td>
   </tr>
 </table>

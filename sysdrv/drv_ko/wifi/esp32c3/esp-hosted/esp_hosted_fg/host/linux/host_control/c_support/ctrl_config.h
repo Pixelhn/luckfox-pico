@@ -49,15 +49,36 @@
 #define SET_WIFI_MAX_TX_POWER              "set_wifi_max_tx_power"
 #define GET_WIFI_CURR_TX_POWER             "get_wifi_curr_tx_power"
 
-#define SSID_LENGTH                         32
-#define PWD_LENGTH                          64
+#define ENABLE_WIFI                        "enable_wifi"
+#define DISABLE_WIFI                       "disable_wifi"
+#define ENABLE_BT                          "enable_bt"
+#define DISABLE_BT                         "disable_bt"
+
+#define GET_FW_VERSION                     "get_fw_version"
+
+#ifndef SSID_LENGTH
+#define SSID_LENGTH                         33
+#endif
+#ifndef PWD_LENGTH
+#define PWD_LENGTH                          65
+#endif
 #define CHUNK_SIZE                          4000
+
+/* sets the band used in Station Mode to connect to the SSID
+ * BAND_MODE_2G_ONLY - only look for SSID on 2.4GHz bands
+ * BAND_MODE_5G_ONLY - only look for SSID on 5GHz bands
+ * BAND_MODE_AUTO - look for SSID on 2.4GHz band, then 5GHz band
+ */
+#define BAND_MODE_2G_ONLY                   1
+#define BAND_MODE_5G_ONLY                   2
+#define BAND_MODE_AUTO                      3
 
 /* station mode */
 #define STATION_MODE_MAC_ADDRESS            "aa:bb:cc:dd:ee:ff"
 #define STATION_MODE_SSID                   "MyWifi"
 #define STATION_MODE_PWD                    "MyWifiPass@123"
 #define STATION_MODE_BSSID                  ""
+#define STATION_BAND_MODE                   BAND_MODE_AUTO
 #define STATION_MODE_IS_WPA3_SUPPORTED      false
 #define STATION_MODE_LISTEN_INTERVAL        3
 
@@ -70,6 +91,7 @@
 #define SOFTAP_MODE_MAX_ALLOWED_CLIENTS     4
 #define SOFTAP_MODE_SSID_HIDDEN             false
 #define SOFTAP_MODE_BANDWIDTH               2
+#define SOFTAP_BAND_MODE                    BAND_MODE_AUTO
 
 #define INPUT_WIFI_TX_POWER                 20
 

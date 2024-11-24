@@ -18,18 +18,28 @@
 #include "esp_api.h"
 #include "esp_cmd.h"
 #include "esp_kernel_port.h"
+#include "esp_fw_version.h"
 
 #include "esp_cfg80211.h"
 #include "esp_stats.h"
 
-#define RELEASE_VERSION "1.0.3"
 #define HOST_GPIO_PIN_INVALID -1
 #define CONFIG_ALLOW_MULTICAST_WAKEUP 1
+
+#define STRINGIFY_HELPER(x) #x
+#define STRINGIFY(x) STRINGIFY_HELPER(x)
+
+#define RELEASE_VERSION PROJECT_NAME "-" STRINGIFY(PROJECT_VERSION_MAJOR_1) "." STRINGIFY(PROJECT_VERSION_MAJOR_2) "." STRINGIFY(PROJECT_VERSION_MINOR) "." STRINGIFY(PROJECT_REVISION_PATCH_1) "." STRINGIFY(PROJECT_REVISION_PATCH_2)
+
 static int resetpin = HOST_GPIO_PIN_INVALID;
 static u32 clockspeed = 0;
 extern u8 ap_bssid[MAC_ADDR_LEN];
 extern volatile u8 host_sleep;
 u32 raw_tp_mode = 0;
+int log_level = ESP_INFO;
+#define VERSION_BUFFER_SIZE 50
+char version_str[VERSION_BUFFER_SIZE];
+
 
 module_param(resetpin, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(resetpin, "Host's GPIO pin number which is connected to ESP32's EN to reset ESP32 device");
@@ -213,7 +223,7 @@ void print_capabilities(u32 cap)
 	}
 }
 
-void init_bt(struct esp_adapter *adapter)
+static void init_bt(struct esp_adapter *adapter)
 {
 
 	if ((adapter->capabilities & ESP_BT_SPI_SUPPORT) ||
@@ -226,12 +236,15 @@ void init_bt(struct esp_adapter *adapter)
 
 static int check_esp_version(struct fw_version *ver)
 {
-	esp_info("ESP Firmware version: %u.%u.%u\n",
-			ver->major1, ver->major2, ver->minor);
-	if (!ver->major1) {
-		esp_err("Incompatible ESP firmware release detected, Please use correct ESP-Hosted branch/compatible release\n");
+	snprintf(version_str, VERSION_BUFFER_SIZE, "%s-%u.%u.%u.%u.%u",
+		ver->project_name, ver->major1, ver->major2, ver->minor, ver->revision_patch_1, ver->revision_patch_2);
+
+	if (strncmp(RELEASE_VERSION, version_str, strlen(version_str)) != 0) {
+		esp_err("Firmware version: %s, Host version: %s\n", version_str, RELEASE_VERSION);
+		esp_err("Incompatible ESP Host-firmware release detected, Please use correct ESP-Hosted branch/compatible release\n");
 		return -1;
 	}
+	esp_info("ESP-Hosted Version: %s\n", version_str);
 	return 0;
 }
 
@@ -271,10 +284,11 @@ static int process_fw_data(struct fw_data *fw_p, int tag_len)
 	return check_esp_version(&fw_p->version);
 }
 
-int process_event_esp_bootup(struct esp_adapter *adapter, u8 *evt_buf, u8 len)
+static int process_event_esp_bootup(struct esp_adapter *adapter, u8 *evt_buf, u8 len)
 {
 	int len_left = len, tag_len, ret = 0;
 	u8 *pos;
+	struct fw_data *fw_p;
 
 	if (!adapter || !evt_buf)
 		return -1;
@@ -286,6 +300,7 @@ int process_event_esp_bootup(struct esp_adapter *adapter, u8 *evt_buf, u8 len)
 
 	clear_bit(ESP_INIT_DONE, &adapter->state_flags);
 	/* Deinit module if already initialized */
+	test_raw_tp_cleanup();
 	esp_deinit_module(adapter);
 
 	pos = evt_buf;
@@ -303,7 +318,8 @@ int process_event_esp_bootup(struct esp_adapter *adapter, u8 *evt_buf, u8 len)
 			ret = esp_validate_chipset(adapter, *(pos + 2));
 			break;
 		case ESP_BOOTUP_FW_DATA:
-			ret = process_fw_data((struct fw_data *)(pos + 2), tag_len);
+			fw_p = (struct fw_data *)(pos + 2);
+			ret = process_fw_data(fw_p, tag_len);
 			break;
 		case ESP_BOOTUP_SPI_CLK_MHZ:
 			ret = esp_adjust_spi_clock(adapter, *(pos + 2));
@@ -320,8 +336,17 @@ int process_event_esp_bootup(struct esp_adapter *adapter, u8 *evt_buf, u8 len)
 		len_left -= (tag_len + 2);
 	}
 
+	if (adapter->capabilities & ESP_WLAN_SDIO_SUPPORT ||
+		adapter->capabilities & ESP_BT_SDIO_SUPPORT) {
+			atomic_set(&adapter->state, ESP_CONTEXT_READY);
+	}
 	if (esp_add_card(adapter)) {
-		esp_err("network iterface init failed\n");
+		if (adapter->capabilities & ESP_WLAN_SDIO_SUPPORT ||
+		    adapter->capabilities & ESP_BT_SDIO_SUPPORT) {
+			atomic_set(&adapter->state, ESP_CONTEXT_DISABLED);
+			generate_slave_intr(&adapter->if_context, BIT(ESP_CLOSE_DATA_PATH));
+		}
+		esp_err("network interface init failed\n");
 		return -1;
 	}
 	init_bt(adapter);
@@ -348,6 +373,13 @@ static int esp_open(struct net_device *ndev)
 
 static int esp_stop(struct net_device *ndev)
 {
+	struct esp_wifi_device *priv = netdev_priv(ndev);
+
+	if (!priv)
+		return 0;
+
+	esp_mark_scan_done_and_disconnect(priv, false);
+	esp_port_close(priv);
 	return 0;
 }
 
@@ -375,7 +407,7 @@ static int esp_set_mac_address(struct net_device *ndev, void *data)
 	ret = cmd_set_mac(priv, sa->sa_data);
 
 	if (ret == 0)
-		eth_hw_addr_set(ndev, priv->mac_address/*mac_addr->sa_data*/);
+		ETH_HW_ADDR_SET(ndev, priv->mac_address/*mac_addr->sa_data*/);
 
 	return ret;
 }
@@ -449,7 +481,7 @@ static int esp_add_network_ifaces(struct esp_adapter *adapter)
 	}
 
 	rtnl_lock();
-	wdev = esp_cfg80211_add_iface(adapter->wiphy, "espsta%d", 1, NL80211_IFTYPE_STATION, NULL);
+	wdev = esp_cfg80211_add_iface(adapter->wiphy, "wlan%d", 1, NL80211_IFTYPE_STATION, NULL);
 	rtnl_unlock();
 
 	/* Return success if network added successfully */
@@ -470,6 +502,7 @@ int esp_add_card(struct esp_adapter *adapter)
 	RET_ON_FAIL(esp_commands_setup(adapter));
 	RET_ON_FAIL(esp_add_wiphy(adapter));
 	RET_ON_FAIL(esp_add_network_ifaces(adapter));
+	clear_bit(ESP_CLEANUP_IN_PROGRESS, &adapter->state_flags);
 
 	return 0;
 }
@@ -536,7 +569,7 @@ static int stop_network_iface(struct esp_wifi_device *priv)
 	return 0;
 }
 
-int esp_stop_network_ifaces(struct esp_adapter *adapter)
+static int esp_stop_network_ifaces(struct esp_adapter *adapter)
 {
 	uint8_t iface_idx = 0;
 
@@ -560,8 +593,13 @@ int esp_remove_card(struct esp_adapter *adapter)
 	}
 
 	esp_stop_network_ifaces(adapter);
+	esp_cfg_cleanup(adapter);
 	/* BT may have been initialized after fw bootup event, deinit it */
 	esp_deinit_bt(adapter);
+
+	if (adapter->if_rx_workqueue) {
+		flush_workqueue(adapter->if_rx_workqueue);
+	}
 	esp_commands_teardown(adapter);
 	esp_remove_network_ifaces(adapter);
 	esp_remove_wiphy(adapter);
@@ -581,13 +619,19 @@ struct esp_wifi_device *get_priv_from_payload_header(
 	for (i = 0; i < ESP_MAX_INTERFACE; i++) {
 		priv = adapter.priv[i];
 
-		if (!priv)
+		if (!priv) {
+			esp_err("dropping pkt, driver not initialized\n");
 			continue;
+                }
 
 		if (priv->if_type == header->if_type &&
-				priv->if_num == header->if_num) {
+		    priv->if_num == header->if_num) {
 			return priv;
-		}
+		} else if (priv->if_type == header->if_type) {
+			esp_err("dropping pkt, priv ifnum=%d, header ifnum=%d\n", priv->if_num, header->if_num);
+                } else {
+			esp_err("dropping pkt, priv iftype=%d, header iftype=%d\n", priv->if_type, header->if_type);
+                }
 	}
 	return NULL;
 }
@@ -645,8 +689,6 @@ static void process_rx_packet(struct esp_adapter *adapter, struct sk_buff *skb)
 	u16 rx_checksum = 0, checksum = 0;
 	struct hci_dev *hdev = adapter->hcidev;
 	u8 *type = NULL;
-	struct sk_buff *eap_skb = NULL;
-	struct ethhdr *eth = NULL;
 
 	if (!skb)
 		return;
@@ -682,37 +724,16 @@ static void process_rx_packet(struct esp_adapter *adapter, struct sk_buff *skb)
 		priv = get_priv_from_payload_header(payload_header);
 
 		if (!priv) {
-			esp_err("Empty priv\n");
 			dev_kfree_skb_any(skb);
 			return;
 		}
 
 		if (payload_header->packet_type == PACKET_TYPE_EAPOL) {
-			esp_info("Rx PACKET_TYPE_EAPOL!!!!\n");
+			esp_dbg("Rx PACKET_TYPE_EAPOL!!!!\n");
 			esp_port_open(priv);
-
-			eap_skb = alloc_skb(skb->len + ETH_HLEN, GFP_KERNEL);
-			if (!eap_skb) {
-				esp_info("%u memory alloc failed\n", __LINE__);
-				dev_kfree_skb_any(skb);
-				return;
-			}
-			eap_skb->dev = priv->ndev;
-
-			if (!IS_ALIGNED((unsigned long) eap_skb->data, SKB_DATA_ADDR_ALIGNMENT)) {
-				esp_info("%u eap skb unaligned\n", __LINE__);
-			}
-
-			eth = (struct ethhdr *) skb_put(eap_skb, ETH_HLEN);
-			ether_addr_copy(eth->h_dest, /*skb->data*/priv->ndev->dev_addr);
-			ether_addr_copy(eth->h_source, /*skb->data+6*/ ap_bssid);
-			eth->h_proto = cpu_to_be16(ETH_P_PAE);
-
-			skb_put_data(eap_skb, skb->data, skb->len);
-			eap_skb->protocol = eth_type_trans(eap_skb, eap_skb->dev);
-			dev_kfree_skb_any(skb);
-
-			netif_rx(eap_skb);
+			skb->dev = priv->ndev;
+			skb->protocol = eth_type_trans(skb, priv->ndev);
+			netif_rx(skb);
 
 		} else if (payload_header->packet_type == PACKET_TYPE_DATA) {
 
@@ -767,6 +788,39 @@ static void process_rx_packet(struct esp_adapter *adapter, struct sk_buff *skb)
 		dev_kfree_skb_any(skb);
 	} else {
 		dev_kfree_skb_any(skb);
+	}
+}
+
+char *esp_get_hardware_name(int hardware_id)
+{
+	if(hardware_id == ESP_FIRMWARE_CHIP_ESP32)
+		return "ESP32";
+	else if(hardware_id == ESP_FIRMWARE_CHIP_ESP32S2)
+		return "ESP32S2";
+	else if(hardware_id == ESP_FIRMWARE_CHIP_ESP32C3)
+		return "ESP32C3";
+	else if(hardware_id == ESP_FIRMWARE_CHIP_ESP32S3)
+		return "ESP32S3";
+	else if(hardware_id == ESP_FIRMWARE_CHIP_ESP32C2)
+		return "ESP32C2";
+	else if(hardware_id == ESP_FIRMWARE_CHIP_ESP32C6)
+		return "ESP32C6";
+	else
+		return "N/A";
+}
+
+bool esp_is_valid_hardware_id(int hardware_id)
+{
+	switch(hardware_id) {
+	case ESP_FIRMWARE_CHIP_ESP32:
+	case ESP_FIRMWARE_CHIP_ESP32S2:
+	case ESP_FIRMWARE_CHIP_ESP32C3:
+	case ESP_FIRMWARE_CHIP_ESP32S3:
+	case ESP_FIRMWARE_CHIP_ESP32C2:
+	case ESP_FIRMWARE_CHIP_ESP32C6:
+		return true;
+	default:
+		return false;
 	}
 }
 
@@ -896,12 +950,12 @@ static void esp_events_work(struct work_struct *work)
 {
 	struct sk_buff *skb = NULL;
 
-	skb = skb_dequeue(&adapter.events_skb_q);
-	if (!skb)
-		return;
-
-	process_internal_event(&adapter, skb);
-	dev_kfree_skb_any(skb);
+	while ((skb = skb_dequeue(&adapter.events_skb_q)) != NULL) {
+		if (skb->data) {
+			process_internal_event(&adapter, skb);
+		}
+		dev_kfree_skb_any(skb);
+	}
 }
 
 static struct esp_adapter *init_adapter(void)
@@ -936,6 +990,9 @@ static struct esp_adapter *init_adapter(void)
 
 static void deinit_adapter(void)
 {
+	if (adapter.if_context)
+		atomic_set(&adapter.state, ESP_CONTEXT_DISABLED);
+
 	skb_queue_purge(&adapter.events_skb_q);
 
 	if (adapter.events_wq)
@@ -970,7 +1027,6 @@ static void esp_reset(void)
 	}
 }
 
-
 static int __init esp_init(void)
 {
 	int ret = 0;
@@ -990,8 +1046,10 @@ static int __init esp_init(void)
 
 	if (ret != 0) {
 		deinit_adapter();
+		return ret;
 	}
 
+	ret = debugfs_init();
 	return ret;
 }
 
@@ -1014,11 +1072,13 @@ static void __exit esp_exit(void)
 	if (resetpin != HOST_GPIO_PIN_INVALID) {
 		gpio_free(resetpin);
 	}
+	debugfs_exit();
 }
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Amey Inamdar <amey.inamdar@espressif.com>");
 MODULE_AUTHOR("Mangesh Malusare <mangesh.malusare@espressif.com>");
 MODULE_AUTHOR("Yogesh Mantri <yogesh.mantri@espressif.com>");
+MODULE_AUTHOR("Kapil Gupta <kapil.gupta@espressif.com>");
 MODULE_DESCRIPTION("Wifi driver for ESP-Hosted solution");
 MODULE_VERSION(RELEASE_VERSION);
 module_init(esp_init);

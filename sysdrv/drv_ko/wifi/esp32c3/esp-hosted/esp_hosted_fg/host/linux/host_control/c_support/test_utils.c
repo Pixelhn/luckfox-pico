@@ -27,8 +27,6 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netdb.h>
-#include <linux/if.h>
-#include <linux/if_arp.h>
 #include <errno.h>
 #include "ctrl_api.h"
 #include "ctrl_config.h"
@@ -75,6 +73,10 @@ typedef struct {
 	ctrl_resp_cb_t fun;
 } event_callback_table_t;
 
+#define MAC_ADDR_LENGTH 18
+static char sta_mac_str[MAC_ADDR_LENGTH];
+static char softap_mac_str[MAC_ADDR_LENGTH];
+
 static char * get_timestamp(char *str, uint16_t str_size)
 {
 	if (str && str_size>=MIN_TIMESTAMP_STR_SIZE) {
@@ -113,15 +115,34 @@ static int ctrl_app_event_callback(ctrl_cmd_t * app_event)
 				get_timestamp(ts, MIN_TIMESTAMP_STR_SIZE),
 					app_event->u.e_heartbeat.hb_num);
 			break;
+		} case CTRL_EVENT_STATION_CONNECTED_TO_AP: {
+			event_sta_conn_t *p_e = &app_event->u.e_sta_conn;
+			printf("%s App EVENT: STA-Connected ssid[%s] bssid[%s] channel[%d] auth[%d] aid[%d]\n",
+				get_timestamp(ts, MIN_TIMESTAMP_STR_SIZE), p_e->ssid,
+				p_e->bssid, p_e->channel, p_e->authmode, p_e->aid);
+			break;
 		} case CTRL_EVENT_STATION_DISCONNECT_FROM_AP: {
-			printf("%s App EVENT: Station mode: Disconnect Reason[%u]\n",
-				get_timestamp(ts, MIN_TIMESTAMP_STR_SIZE), app_event->resp_event_status);
+			event_sta_disconn_t *p_e =  &app_event->u.e_sta_disconn;
+			printf("%s App EVENT: STA-Disconnected reason[%d] ssid[%s] bssid[%s] rssi[%d]\n",
+				get_timestamp(ts, MIN_TIMESTAMP_STR_SIZE), p_e->reason, p_e->ssid,
+				p_e->bssid, p_e->rssi);
+			break;
+		} case CTRL_EVENT_STATION_CONNECTED_TO_ESP_SOFTAP: {
+			event_softap_sta_conn_t *p_e = &app_event->u.e_softap_sta_conn;
+			char *p = (char *)p_e->mac;
+			if (p && strlen(p)) {
+				printf("%s App EVENT: SoftAP mode: Connected MAC[%s] aid[%d] is_mesh_child[%d]\n",
+					get_timestamp(ts, MIN_TIMESTAMP_STR_SIZE),
+					p, p_e->aid, p_e->is_mesh_child);
+			}
 			break;
 		} case CTRL_EVENT_STATION_DISCONNECT_FROM_ESP_SOFTAP: {
-			char *p = app_event->u.e_sta_disconnected.mac;
+			event_softap_sta_disconn_t *p_e = &app_event->u.e_softap_sta_disconn;
+			char *p = (char *)p_e->mac;
 			if (p && strlen(p)) {
-				printf("%s App EVENT: SoftAP mode: Disconnect MAC[%s]\n",
-					get_timestamp(ts, MIN_TIMESTAMP_STR_SIZE), p);
+				printf("%s App EVENT: SoftAP mode: Disconnect MAC[%s] reason[%d] aid[%d] is_mesh_child[%d]\n",
+					get_timestamp(ts, MIN_TIMESTAMP_STR_SIZE),
+					p, p_e->reason, p_e->aid, p_e->is_mesh_child);
 			}
 			break;
 		} default: {
@@ -214,7 +235,7 @@ static void process_failed_responses(ctrl_cmd_t *app_msg)
 	}
 }
 
-static int process_resp_disconnect_ap(ctrl_cmd_t * app_msg)
+static int down_sta_netdev(void)
 {
 	int ret = SUCCESS, sockfd = 0;
 
@@ -248,11 +269,11 @@ close_sock:
 	return FAILURE;
 }
 
-static int process_resp_connect_ap(ctrl_cmd_t * app_msg)
+static int up_sta_netdev(char *sta_mac)
 {
 	int ret = SUCCESS, sockfd = 0;
 
-	if (!strlen(app_msg->u.wifi_ap_config.out_mac)) {
+	if (!sta_mac || !strlen(sta_mac)) {
 		printf("Failure: station mac is empty\n");
 		return FAILURE;
 	}
@@ -271,10 +292,9 @@ static int process_resp_connect_ap(ctrl_cmd_t * app_msg)
 		goto close_sock;
 	}
 
-	ret = set_hw_addr(sockfd, STA_INTERFACE, app_msg->u.wifi_ap_config.out_mac);
+	ret = set_hw_addr(sockfd, STA_INTERFACE, sta_mac);
 	if (ret == SUCCESS) {
-		printf("MAC address %s set to %s interface\n",
-				app_msg->u.wifi_ap_config.out_mac, STA_INTERFACE);
+		printf("MAC address %s set to %s interface\n", sta_mac, STA_INTERFACE);
 	} else {
 		printf("Unable to set MAC address to %s interface\n", STA_INTERFACE);
 		goto close_sock;
@@ -303,7 +323,7 @@ close_sock:
 	return FAILURE;
 }
 
-static int process_resp_stop_softap(ctrl_cmd_t * app_msg)
+static int down_softap_netdev(void)
 {
 	int ret = SUCCESS, sockfd = 0;
 
@@ -336,11 +356,11 @@ close_sock:
 	return FAILURE;
 }
 
-static int process_resp_start_softap(ctrl_cmd_t * app_msg)
+static int up_softap_netdev(char *softap_mac)
 {
 	int ret = SUCCESS, sockfd = 0;
 
-	if (!strlen(app_msg->u.wifi_softap_config.out_mac)) {
+	if (!softap_mac || !strlen(softap_mac)) {
 		printf("Failure: softap mac is empty\n");
 		return FAILURE;
 	}
@@ -359,10 +379,9 @@ static int process_resp_start_softap(ctrl_cmd_t * app_msg)
 		goto close_sock;
 	}
 
-	ret = set_hw_addr(sockfd, AP_INTERFACE, app_msg->u.wifi_softap_config.out_mac);
+	ret = set_hw_addr(sockfd, AP_INTERFACE, softap_mac);
 	if (ret == SUCCESS) {
-		printf("MAC address %s set to %s interface\n",
-				app_msg->u.wifi_softap_config.out_mac, AP_INTERFACE);
+		printf("MAC address %s set to %s interface\n", softap_mac, AP_INTERFACE);
 	} else {
 		printf("Unable to set MAC address to %s interface\n", AP_INTERFACE);
 		goto close_sock;
@@ -413,7 +432,9 @@ int register_event_callbacks(void)
 	event_callback_table_t events[] = {
 		{ CTRL_EVENT_ESP_INIT,                           ctrl_app_event_callback },
 		{ CTRL_EVENT_HEARTBEAT,                          ctrl_app_event_callback },
+		{ CTRL_EVENT_STATION_CONNECTED_TO_AP,            ctrl_app_event_callback },
 		{ CTRL_EVENT_STATION_DISCONNECT_FROM_AP,         ctrl_app_event_callback },
+		{ CTRL_EVENT_STATION_CONNECTED_TO_ESP_SOFTAP,    ctrl_app_event_callback },
 		{ CTRL_EVENT_STATION_DISCONNECT_FROM_ESP_SOFTAP, ctrl_app_event_callback },
 	};
 
@@ -499,17 +520,18 @@ int ctrl_app_resp_callback(ctrl_cmd_t * app_resp)
 				printf("AP's channel number %d\n", p->channel);
 				printf("AP's rssi %d\n", p->rssi);
 				printf("AP's encryption mode %d\n", p->encryption_mode);
+				printf("AP's band mode %d\n", p->band_mode);
 			} else {
 				printf("Station mode status: %s\n",p->status);
 			}
 			break;
 		} case CTRL_RESP_CONNECT_AP : {
-			if (process_resp_connect_ap(app_resp))
+			if (up_sta_netdev(app_resp->u.wifi_ap_config.out_mac))
 				goto fail_resp;
 			break;
 		} case CTRL_RESP_DISCONNECT_AP : {
 			printf("Disconnected from AP \n");
-			if (process_resp_disconnect_ap(app_resp))
+			if (down_sta_netdev())
 				goto fail_resp;
 			break;
 		} case CTRL_RESP_GET_SOFTAP_CONFIG : {
@@ -522,14 +544,15 @@ int ctrl_app_resp_callback(ctrl_cmd_t * app_resp)
 			printf("softAP max connections %d \n", resp_p->max_connections);
 			printf("softAP ssid broadcast status %d \n", resp_p->ssid_hidden);
 			printf("softAP bandwidth mode %d \n", resp_p->bandwidth);
+			printf("softAP band mode %d \n", resp_p->band_mode);
 
 			break;
 		} case CTRL_RESP_SET_SOFTAP_VND_IE : {
 			printf("Success in set vendor specific ie\n");
 			break;
 		} case CTRL_RESP_START_SOFTAP : {
-			printf("esp32 softAP started \n");
-			if (process_resp_start_softap(app_resp))
+			printf("esp32 softAP started with band_mode %d\n", app_resp->u.wifi_softap_config.band_mode);
+			if (up_softap_netdev(app_resp->u.wifi_softap_config.out_mac))
 				goto fail_resp;
 			break;
 		} case CTRL_RESP_GET_SOFTAP_CONN_STA_LIST : {
@@ -554,7 +577,7 @@ int ctrl_app_resp_callback(ctrl_cmd_t * app_resp)
 			break;
 		} case CTRL_RESP_STOP_SOFTAP : {
 			printf("esp32 softAP stopped\n");
-			if (process_resp_stop_softap(app_resp))
+			if (down_softap_netdev())
 				goto fail_resp;
 			break;
 		} case CTRL_RESP_SET_PS_MODE : {
@@ -593,6 +616,12 @@ int ctrl_app_resp_callback(ctrl_cmd_t * app_resp)
 			break;
 		} case CTRL_RESP_CONFIG_HEARTBEAT: {
 			printf("Heartbeat operation successful\n");
+			break;
+		} case CTRL_RESP_ENABLE_DISABLE: {
+			printf("Feature config change successful\n");
+			break;
+		} case CTRL_RESP_GET_FW_VERSION: {
+			printf("Get Firmware Version successful\n");
 			break;
 		} default: {
 			printf("Invalid Response[%u] to parse\n", app_resp->msg_id);
@@ -664,6 +693,14 @@ int test_get_wifi_mac_addr(int mode)
 	req.u.wifi_mac.mode = mode;
 	resp = wifi_get_mac(req);
 
+	if (resp->resp_event_status == SUCCESS) {
+		if (mode == WIFI_MODE_STA) {
+			strncpy(sta_mac_str, resp->u.wifi_mac.mac, MAC_ADDR_LENGTH);
+		} else if (mode == WIFI_MODE_AP) {
+			strncpy(softap_mac_str, resp->u.wifi_mac.mac, MAC_ADDR_LENGTH);
+		}
+	}
+
 	return ctrl_app_resp_callback(resp);
 }
 
@@ -681,8 +718,8 @@ int test_set_mac_addr(int mode, char *mac)
 	int ret = test_set_wifi_mode(mode);
 	if (ret == SUCCESS) {
 		req.u.wifi_mac.mode = mode;
-		strncpy(req.u.wifi_mac.mac, mac, MAX_MAC_STR_LEN);
-		req.u.wifi_mac.mac[MAX_MAC_STR_LEN-1] = '\0';
+		strncpy(req.u.wifi_mac.mac, mac, MAX_MAC_STR_SIZE);
+		req.u.wifi_mac.mac[MAX_MAC_STR_SIZE-1] = '\0';
 
 		resp = wifi_set_mac(req);
 		return ctrl_app_resp_callback(resp);
@@ -710,11 +747,13 @@ int test_station_mode_connect(void)
 	/* implemented Asynchronous */
 	ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
 
+	printf("Connect to AP[%s]", STATION_MODE_SSID);
 	strcpy((char *)&req.u.wifi_ap_config.ssid, STATION_MODE_SSID);
 	strcpy((char *)&req.u.wifi_ap_config.pwd, STATION_MODE_PWD);
 	strcpy((char *)&req.u.wifi_ap_config.bssid, STATION_MODE_BSSID);
 	req.u.wifi_ap_config.is_wpa3_supported = STATION_MODE_IS_WPA3_SUPPORTED;
 	req.u.wifi_ap_config.listen_interval = STATION_MODE_LISTEN_INTERVAL;
+	req.u.wifi_ap_config.band_mode = STATION_BAND_MODE;
 
 	/* register callback for handling asynch reply */
 	req.ctrl_resp_cb = ctrl_app_resp_callback;
@@ -764,14 +803,15 @@ int test_softap_mode_start(void)
 	ctrl_cmd_t *resp = NULL;
 
 	strncpy((char *)&req.u.wifi_softap_config.ssid,
-			SOFTAP_MODE_SSID, MAX_MAC_STR_LEN-1);
+			SOFTAP_MODE_SSID, SSID_LENGTH - 1);
 	strncpy((char *)&req.u.wifi_softap_config.pwd,
-			SOFTAP_MODE_PWD, MAX_MAC_STR_LEN-1);
+			SOFTAP_MODE_PWD, PASSWORD_LENGTH - 1);
 	req.u.wifi_softap_config.channel = SOFTAP_MODE_CHANNEL;
 	req.u.wifi_softap_config.encryption_mode = SOFTAP_MODE_ENCRYPTION_MODE;
 	req.u.wifi_softap_config.max_connections = SOFTAP_MODE_MAX_ALLOWED_CLIENTS;
 	req.u.wifi_softap_config.ssid_hidden = SOFTAP_MODE_SSID_HIDDEN;
 	req.u.wifi_softap_config.bandwidth = SOFTAP_MODE_BANDWIDTH;
+	req.u.wifi_softap_config.band_mode = SOFTAP_BAND_MODE;
 
 	resp = wifi_start_softap(req);
 
@@ -1057,3 +1097,139 @@ int test_disable_heartbeat_async(void)
 
 	return SUCCESS;
 }
+
+int test_enable_wifi(void)
+{
+	/* implemented synchronous */
+	ctrl_cmd_t *resp = NULL;
+	ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
+	req.u.feat_ena_disable.feature = HOSTED_WIFI;
+	req.u.feat_ena_disable.enable = YES;
+
+	resp = feature_config(req);
+
+	if (resp->resp_event_status == SUCCESS) {
+		test_station_mode_get_mac_addr();
+		up_sta_netdev(sta_mac_str);
+		test_softap_mode_get_mac_addr();
+		up_softap_netdev(softap_mac_str);
+	}
+
+	return ctrl_app_resp_callback(resp);
+}
+
+int test_disable_wifi(void)
+{
+	/* implemented synchronous */
+	ctrl_cmd_t *resp = NULL;
+	ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
+	req.u.feat_ena_disable.feature = HOSTED_WIFI;
+	req.u.feat_ena_disable.enable = NO;
+
+	resp = feature_config(req);
+	if (resp->resp_event_status == SUCCESS) {
+		down_sta_netdev();
+		down_softap_netdev();
+	}
+
+	return ctrl_app_resp_callback(resp);
+}
+
+
+#include <sys/ioctl.h>
+#include <net/if.h>
+static void down_hci_instance(void)
+{
+#define DOWN_HCI_INSTANCE_CMD "sudo hciconfig | grep  'Bus: SDIO\\| Bus: UART\\| Bus: SPI' | awk -F: '{print $1}' | xargs -I{} sudo hciconfig {} down"
+    int result = system(DOWN_HCI_INSTANCE_CMD);
+    if (result == 0) {
+        printf("Bluetooth interface set down successfully\n");
+    } else {
+        printf("Failed to bring Bluetooth interface down\n");
+    }
+}
+
+static void reset_hci_instance(void)
+{
+#define RESET_HCI_INSTANCE_CMD "sudo hciconfig | grep  'Bus: SDIO\\| Bus: UART\\| Bus: SPI' | awk -F: '{print $1}' | xargs -I{} sudo hciconfig {} reset"
+    int result = system(RESET_HCI_INSTANCE_CMD);
+    if (result == 0) {
+        printf("Bluetooth interface reset successfully\n");
+    } else {
+        printf("Failed to reset Bluetooth interface\n");
+    }
+}
+
+int test_enable_bt(void)
+{
+	/* implemented synchronous */
+	ctrl_cmd_t *resp = NULL;
+	ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
+	req.u.feat_ena_disable.feature = HOSTED_BT;
+	req.u.feat_ena_disable.enable = YES;
+
+	resp = feature_config(req);
+
+	if (resp->resp_event_status == SUCCESS)
+		reset_hci_instance();
+
+	return ctrl_app_resp_callback(resp);
+}
+
+int test_disable_bt(void)
+{
+	/* implemented synchronous */
+	ctrl_cmd_t *resp = NULL;
+	ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
+	req.u.feat_ena_disable.feature = HOSTED_BT;
+	req.u.feat_ena_disable.enable = NO;
+
+	resp = feature_config(req);
+
+	if (resp->resp_event_status == SUCCESS)
+		down_hci_instance();
+
+	return ctrl_app_resp_callback(resp);
+}
+
+char * test_get_fw_version(char *version)
+{
+	/* implemented synchronous */
+	ctrl_cmd_t *resp = NULL;
+	ctrl_cmd_t req = CTRL_CMD_DEFAULT_REQ();
+	resp = get_fw_version(req);
+
+	if (!version)
+		return NULL;
+
+	if (resp->resp_event_status == SUCCESS) {
+		/*printf("FW Version Info: %s-%d.%d.%d.%d.%d\n",
+				resp->u.fw_version.project_name,
+				resp->u.fw_version.major_1,
+				resp->u.fw_version.major_2,
+				resp->u.fw_version.minor,
+				resp->u.fw_version.revision_patch_1,
+				resp->u.fw_version.revision_patch_2);*/
+		snprintf(version, sizeof("XX-111.222.333.444.555"), "%s-%d.%d.%d.%d.%d",
+				resp->u.fw_version.project_name,
+				resp->u.fw_version.major_1,
+				resp->u.fw_version.major_2,
+				resp->u.fw_version.minor,
+				resp->u.fw_version.revision_patch_1,
+				resp->u.fw_version.revision_patch_2);
+	}
+
+	CLEANUP_CTRL_MSG(resp);
+
+	return version;
+}
+
+int test_print_fw_version(char *version, uint16_t version_size)
+{
+	char vers[30] = {'\0'};
+
+	printf("Hosted Slave FW Version [%s]\n", test_get_fw_version(vers));
+
+	return 0;
+}
+
