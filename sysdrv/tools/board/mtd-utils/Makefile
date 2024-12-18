@@ -34,7 +34,7 @@ all:
 		cp -vfa	\
 			flashcp flash_erase flash_eraseall flash_lock flash_unlock mtdinfo \
 			nanddump nandwrite \
-			ubiattach ubiblock ubidetach ubiformat ubimkvol ubirename ubirmvol ubirsvol ubinfo \
+			ubiattach ubiblock ubidetach ubiformat ubimkvol ubirename ubirmvol ubirsvol ubinfo ubiupdatevol \
 			$(SYSDRV_DIR_OUT_ROOTFS)/usr/bin; \
 		popd; \
 	)

@@ -2639,6 +2639,8 @@ function build_firmware() {
 		if [ "$LF_TARGET_ROOTFS" = "buildroot" ]; then
 			echo buildroot
 
+			__RELEASE_FILESYSTEM_FILES $RK_PROJECT_PACKAGE_ROOTFS_DIR
+
 			rm -f $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/hostname
 			rm -f $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/hosts
 			rm -rf $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc/network

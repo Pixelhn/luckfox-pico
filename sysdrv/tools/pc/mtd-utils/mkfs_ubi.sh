@@ -331,8 +331,8 @@ else
 fi
 
 mk_ubi_image_fake_for_rootfs 0x20000 2048
-mk_ubi_image_fake_for_rootfs 0x40000 2048
-mk_ubi_image_fake_for_rootfs 0x40000 4096
+# mk_ubi_image_fake_for_rootfs 0x40000 2048
+# mk_ubi_image_fake_for_rootfs 0x40000 4096
 if [ "$FAKEROOT_TOOL" = "NO_FOUND" ]; then
 	msg_warn "No found fakeroot tool..."
 	$ROOTFS_IMAGE_FAKEROOT_UBI
