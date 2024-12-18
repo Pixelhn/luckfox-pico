@@ -178,6 +178,7 @@ obj-$(CONFIG_CMD_BLOB) += blob.o
 
 obj-$(CONFIG_ARCH_ROCKCHIP) += rkimgtest.o
 obj-$(CONFIG_CMD_ATAGS) += atags.o
+obj-$(CONFIG_CMD_ABBOOT) += cmd_abboot.o
 
 endif # !CONFIG_SPL_BUILD
 
