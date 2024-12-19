@@ -1801,7 +1801,7 @@ function parse_partition_file() {
 		;;
 	spi_nand)
 		storage_dev_prefix=mtd
-		RK_PARTITION_ARGS="mtdparts=spi-nand0:$RK_PARTITION_CMD_IN_ENV"
+		RK_PARTITION_ARGS="mtdparts=mtdparts=spi-nand0:$RK_PARTITION_CMD_IN_ENV"
 		part_num=0
 		fit_target_optional_param="preload_none"
 		;;
@@ -1818,6 +1818,7 @@ function parse_partition_file() {
 		;;
 	esac
 	echo "${RK_PARTITION_ARGS}" >$ENV_CFG_FILE
+	echo "mtdids=spi-nand0=spi-nand0" >> $ENV_CFG_FILE
 
 	mkdir -p $(dirname $RK_PROJECT_FILE_ROOTFS_SCRIPT)
 	echo "#!/bin/sh" >$RK_PROJECT_FILE_ROOTFS_SCRIPT
