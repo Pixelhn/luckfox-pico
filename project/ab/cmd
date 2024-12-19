@@ -1,8 +1,8 @@
 setenv sys_bootargs  ubi.mtd=5 root=ubi0:rootfs rootfstype=ubifs rk_dma_heap_cma=66M
 
-setenv sys_bootargs  ubi.mtd=5 root=ubi0_1 rootfstype=ubifs rk_dma_heap_cma=66M
+setenv sys_bootargs  ubi.mtd=4 root=ubi0_1 rootfstype=ubifs rk_dma_heap_cma=66M
 
-ubi part oem
+ubi part system_a
 
 ubi read 0x00d00000 kernel 400000
 
