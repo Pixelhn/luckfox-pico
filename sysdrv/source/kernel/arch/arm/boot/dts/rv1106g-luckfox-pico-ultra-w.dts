@@ -33,6 +33,57 @@
     BT,wake_host_irq = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
     status = "okay";
   };
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+
+		power-key1 {
+			gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_1>;
+			label ="GPIO Key 1";
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+
+		power-key2 {
+			gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_2>;
+			label ="GPIO Key 2";
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+
+		power-key3 {
+			gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_3>;
+			label ="GPIO Key 3";
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+
+		power-key4 {
+			gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_4>;
+			label ="GPIO Key 4";
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+
+	};
+
+};
+
+&pinctrl {
+	buttons {
+		pwr_key: pwr-key {
+			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_down>,
+			<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_down>,
+			<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>,
+			<1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
 };
 
 /**********CRU**********/
