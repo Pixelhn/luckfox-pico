@@ -43,7 +43,7 @@
 			gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_1>;
 			label ="GPIO Key 1";
-			debounce-interval = <100>;
+			debounce-interval = <30>;
 			wakeup-source;
 		};
 
@@ -51,7 +51,7 @@
 			gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_2>;
 			label ="GPIO Key 2";
-			debounce-interval = <100>;
+			debounce-interval = <30>;
 			wakeup-source;
 		};
 
@@ -59,7 +59,7 @@
 			gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_3>;
 			label ="GPIO Key 3";
-			debounce-interval = <100>;
+			debounce-interval = <30>;
 			wakeup-source;
 		};
 
@@ -67,7 +67,7 @@
 			gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_4>;
 			label ="GPIO Key 4";
-			debounce-interval = <100>;
+			debounce-interval = <30>;
 			wakeup-source;
 		};
 
