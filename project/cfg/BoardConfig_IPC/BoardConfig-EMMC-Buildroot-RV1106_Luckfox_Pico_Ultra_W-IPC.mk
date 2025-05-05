@@ -35,7 +35,7 @@ export RK_UBOOT_DEFCONFIG_FRAGMENT=rk-emmc.config
 #       <partdef> := <size>[@<offset>](part-name)
 # Note:
 #   If the first partition offset is not 0x0, it must be added. Otherwise, it needn't adding.
-export RK_PARTITION_CMD_IN_ENV="32K(env),512K@32K(idblock),256K(uboot),32M(boot),512M(oem),256M(userdata),6G(rootfs)"
+export RK_PARTITION_CMD_IN_ENV="32K(env),512K@32K(idblock),256K(uboot),32M(boot),512M(oem),256M(userdata),-(rootfs)"
 
 # config partition's filesystem type (squashfs is readonly)
 # emmc:    squashfs/ext4
@@ -90,11 +90,11 @@ export RK_KERNEL_DEFCONFIG_FRAGMENT=rv1106-bt.config
 # RK_CAMERA_SENSOR_IQFILES format:
 #     "iqfile1 iqfile2 iqfile3 ..."
 # ./build.sh media and copy <SDK root dir>/output/out/media_out/isp_iqfiles/$RK_CAMERA_SENSOR_IQFILES
-export RK_CAMERA_SENSOR_IQFILES="sc4336_OT01_40IRC_F16.json sc3336_CMK-OT2119-PC1_30IRC-F16.json mis5001_CMK-OT2115-PC1_30IRC-F16.json"
+export RK_CAMERA_SENSOR_IQFILES="sc3336_CMK-OT2119-PC1_30IRC-F16.json mis5001_CMK-OT2115-PC1_30IRC-F16.json"
 #export RK_CAMERA_SENSOR_IQFILES="sc4336_OT01_40IRC_F16.json sc3336_CMK-OT2119-PC1_30IRC-F16.json sc530ai_CMK-OT2115-PC1_30IRC-F16.json"
 
 # Config sensor lens CAC calibrattion bin files
-export RK_CAMERA_SENSOR_CAC_BIN="CAC_sc4336_OT01_40IRC_F16"
+# export RK_CAMERA_SENSOR_CAC_BIN="CAC_sc4336_OT01_40IRC_F16"
 #export RK_CAMERA_SENSOR_CAC_BIN="CAC_sc4336_OT01_40IRC_F16 CAC_sc530ai_CMK-OT2115-PC1_30IRC-F16"
 
 # build ipc web backend
