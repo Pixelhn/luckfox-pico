@@ -165,8 +165,8 @@
 /**********USB**********/
 &usbdrd_dwc3 {
 	status = "okay";
-	dr_mode = "peripheral";
-  #dr_mode = "host";
+  	dr_mode = "host";
+	// dr_mode = "peripheral";
 };
 
 /**********RTC**********/
