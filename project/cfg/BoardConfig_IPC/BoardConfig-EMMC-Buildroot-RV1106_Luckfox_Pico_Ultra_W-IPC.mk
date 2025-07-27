@@ -16,12 +16,21 @@ export RK_BOOTARGS_CMA_SIZE="66M"
 # Kernel dts
 export RK_KERNEL_DTS=rv1106g-luckfox-pico-ultra-w.dts
 
+# Kernel defconfig
+export RK_KERNEL_DEFCONFIG=luckfox_rv1106_linux_defconfig
+
+# Kernel defconfig fragment
+export RK_KERNEL_DEFCONFIG_FRAGMENT=rv1106-bt.config
+
 #################################################
 #	BOOT_MEDIUM
 #################################################
 
 # Target boot medium
 export RK_BOOT_MEDIUM=emmc
+
+# Uboot defconfig
+export RK_UBOOT_DEFCONFIG=luckfox_rv1106_uboot_defconfig
 
 # Uboot defconfig fragment
 export RK_UBOOT_DEFCONFIG_FRAGMENT=rk-emmc.config
@@ -76,15 +85,6 @@ export RK_TOOLCHAIN_CROSS=arm-rockchip830-linux-uclibcgnueabihf
 
 #misc image
 export RK_MISC=wipe_all-misc.img
-
-# Uboot defconfig
-export RK_UBOOT_DEFCONFIG=luckfox_rv1106_uboot_defconfig
-
-# Kernel defconfig
-export RK_KERNEL_DEFCONFIG=luckfox_rv1106_linux_defconfig
-
-# Kernel defconfig fragment
-export RK_KERNEL_DEFCONFIG_FRAGMENT=rv1106-bt.config
 
 # Config sensor IQ files
 # RK_CAMERA_SENSOR_IQFILES format:
