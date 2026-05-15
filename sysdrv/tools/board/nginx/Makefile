@@ -5,8 +5,8 @@ export LC_ALL=C
 export SHELL:=/bin/bash
 CURRENT_DIR := $(shell pwd)
 
-BUILD_TARGET := ${CURRENT_DIR}/nginx-1.26.2.tar.gz
-BUILD_TARGET_DIR := ${CURRENT_DIR}/nginx-1.26.2
+BUILD_TARGET := ${CURRENT_DIR}/nginx-1.31.0.tar.gz
+BUILD_TARGET_DIR := ${CURRENT_DIR}/nginx-1.31.0
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 INSTALL_TARGET := ${BUILD_TARGET_OUT}/sbin/nginx
 

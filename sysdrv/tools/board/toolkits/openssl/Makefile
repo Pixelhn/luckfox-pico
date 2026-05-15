@@ -34,8 +34,8 @@ ifeq ($(PKG_USE_THUMB2),YES)
 PKG_CONF_OPTS += -mthumb -Wa,-mimplicit-it=thumb -mthumb-interwork
 endif
 
-PKG_TARBALL_OPENSSL3 := openssl-3.5.4.tar.gz
-PKG_NAME_OPENSSL3 := openssl-3.5.4
+PKG_TARBALL_OPENSSL3 := openssl-3.5.6.tar.gz
+PKG_NAME_OPENSSL3 := openssl-3.5.6
 PKG_BIN3 := out3
 #SYSDRV_CROSS=arm-rockchip830-linux-uclibcgnueabihf-
 
