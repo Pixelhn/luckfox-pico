@@ -29,9 +29,6 @@ all:lib_openssl lib_pcre2 lib_zlib
  			--with-ld-opt="-L ${LIB_PCRE2}/out/lib -L ${LIB_OPENSSL}/out3/lib -L ${LIB_ZLIB}/out/lib" \
  			\
 			--without-http_upstream_zone_module \
-			--without-http_fastcgi_module \
-			--without-http_uwsgi_module \
-			--without-http_scgi_module \
 			\
 			--with-http_gzip_static_module \
 			\
@@ -52,9 +49,9 @@ all:lib_openssl lib_pcre2 lib_zlib
 		cp -rfp $(BUILD_TARGET_OUT)/../nginx.sh  $(SYSDRV_DIR_OUT_ROOTFS)/etc/profile.d/nginx.sh; \
 		\
 		mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)/root/web/conf/;\
-		mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)/root/web/html/;\
+		mkdir -p $(SYSDRV_DIR_OUT_ROOTFS)/var/www/html/;\
 		cp -rfp $(BUILD_TARGET_OUT)/conf/*  $(SYSDRV_DIR_OUT_ROOTFS)/root/web/conf/; \
-		cp -rfp $(BUILD_TARGET_OUT)/html/*  $(SYSDRV_DIR_OUT_ROOTFS)/root/web/html/; \
+		cp -rfp $(BUILD_TARGET_OUT)/html/*  $(SYSDRV_DIR_OUT_ROOTFS)/var/www/html/; \
 	)
 
 lib_openssl:
