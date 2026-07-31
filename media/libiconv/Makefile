@@ -10,8 +10,8 @@ export LC_ALL=C
 export SHELL:=/bin/bash
 CURRENT_DIR := $(shell pwd)
 
-BUILD_TARGET := ${CURRENT_DIR}/libiconv-1.17.tar.gz
-BUILD_TARGET_DIR := ${CURRENT_DIR}/libiconv-1.17
+BUILD_TARGET := ${CURRENT_DIR}/libiconv-1.19.tar.gz
+BUILD_TARGET_DIR := ${CURRENT_DIR}/libiconv-1.19
 BUILD_TARGET_OUT := ${CURRENT_DIR}/out
 
 all:
