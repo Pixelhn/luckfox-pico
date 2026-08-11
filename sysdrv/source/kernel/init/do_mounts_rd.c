@@ -264,6 +264,15 @@ int __init rd_load_image(char *from)
 	}
 	pr_cont("done.\n");
 
+	/*
+	 * kernel_write() above only put dirty pages in the blockdev page
+	 * cache.  Filesystems that read via direct bio submission (e.g.
+	 * squashfs) bypass the page cache and would see stale/zero data on
+	 * the underlying device.  Force the dirty pages down to the device
+	 * before returning.
+	 */
+	sync_blockdev(I_BDEV(out_file->f_mapping->host));
+
 successful_load:
 	res = 1;
 done:
