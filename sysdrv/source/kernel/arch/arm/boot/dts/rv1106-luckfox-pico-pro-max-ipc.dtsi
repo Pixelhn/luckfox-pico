@@ -60,18 +60,18 @@
 		};	
 	};
 
-	// DHT11
-	dht11_sensor {
-		compatible = "dht11";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio1_pc7>;
+	// // DHT11
+	// dht11_sensor {
+	// 	compatible = "dht11";
+	// 	pinctrl-names = "default";
+	// 	pinctrl-0 = <&gpio1_pc7>;
 
-		dht11@1 {
-			gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
-			label = "dht11";
-			linux,default-trigger = "humidity";
-		};
-	};
+	// 	dht11@1 {
+	// 		gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+	// 		label = "dht11";
+	// 		linux,default-trigger = "humidity";
+	// 	};
+	// };
 
 };
 
@@ -271,32 +271,32 @@
 	pinctrl-0 = <&spi0m0_clk &spi0m0_miso &spi0m0_mosi &spi0m0_cs0>;
 	#address-cells = <1>;
 	#size-cells = <0>;
-	spidev@0 {
-	compatible = "rockchip,spidev";
-		spi-max-frequency = <50000000>;
-		reg = <0>;
-	};
+	// spidev@0 {
+	// compatible = "rockchip,spidev";
+	// 	spi-max-frequency = <50000000>;
+	// 	reg = <0>;
+	// };
 
-	fbtft@0 {
-		compatible = "sitronix,st7789v";
-		reg = <0>;
-		spi-max-frequency = <20000000>;
-		fps = <30>;
-		buswidth = <8>;
-		debug = <0x7>;
-		led-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;//BL
-		dc-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;//DC
-		reset-gpios = <&gpio1 RK_PC3 GPIO_ACTIVE_LOW>;//RES
-	};
+	// fbtft@0 {
+	// 	compatible = "sitronix,st7789v";
+	// 	reg = <0>;
+	// 	spi-max-frequency = <20000000>;
+	// 	fps = <30>;
+	// 	buswidth = <8>;
+	// 	debug = <0x7>;
+	// 	led-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;//BL
+	// 	dc-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;//DC
+	// 	reset-gpios = <&gpio1 RK_PC3 GPIO_ACTIVE_LOW>;//RES
+	// };
 };
 // I2C
 &i2c0 {
 	pinctrl-0 = <&i2c0m2_xfer>;
 };
 
-&i2c1 {
-	pinctrl-0 = <&i2c1m1_xfer>;
-};
+// &i2c1 {
+// 	pinctrl-0 = <&i2c1m1_xfer>;
+// };
 
 &i2c3 {
 	pinctrl-0 = <&i2c3m1_xfer &i2c3m0_xfer>;
@@ -315,9 +315,9 @@
 &uart1 {
 	pinctrl-0 = <&uart1m1_xfer>;
 };
-&uart3 {
-	pinctrl-0 = <&uart3m1_xfer>;
-};
+// &uart3 {
+// 	pinctrl-0 = <&uart3m1_xfer>;
+// };
 &uart4 {
 	pinctrl-0 = <&uart4m1_xfer>;
 };
@@ -373,11 +373,11 @@
 		};
 	};
 
-	gpio1-pc7 {
-		gpio1_pc7: gpio1-pc7 {
-			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
+	// gpio1-pc7 {
+	// 	gpio1_pc7: gpio1-pc7 {
+	// 		rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+	// 	};
+	// };
 };
 
 

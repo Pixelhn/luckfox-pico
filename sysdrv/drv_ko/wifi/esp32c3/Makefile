@@ -14,7 +14,7 @@ FG_TARGET := ${FG_BUILD_TARGET_DIR}/esp32_spi.ko
 BUILD_TARGET_OUT := ../../out
 KERNEL_DIR :=$(CURRENT_DIR)/../../../source/objs_kernel/
 
-all:fg ng fg_app fg_sdio
+all:fg ng fg_app
 
 ng:
 	${MAKE} -C ${NG_BUILD_TARGET_DIR} \
@@ -29,8 +29,8 @@ ng_sdio:
 	${MAKE} -C ${NG_BUILD_TARGET_DIR} \
 	CROSS_COMPILE=$(SYSDRV_CROSS) \
 	KERNEL=$(KERNEL_DIR) \
-	target=spi ARCH=${SYSDRV_ARCH_TYPE}
-	$(SYSDRV_CROSS)strip ${NG_TARGET} --strip-debug
+	target=sdio ARCH=${SYSDRV_ARCH_TYPE}
+	$(SYSDRV_CROSS)strip ${NG_BUILD_TARGET_DIR}/esp32_sdio.ko --strip-debug
 	cp ${NG_BUILD_TARGET_DIR}/esp32_sdio.ko ${BUILD_TARGET_OUT}/esp32_sdio_ng.ko
 	cp insmod_esp_hosted_ng.sh ${BUILD_TARGET_OUT}
 
@@ -49,7 +49,7 @@ fg_sdio:
 	CROSS_COMPILE=$(SYSDRV_CROSS) \
 	KERNEL=$(KERNEL_DIR) \
 	target=sdio ARCH=${SYSDRV_ARCH_TYPE}
-	$(SYSDRV_CROSS)strip ${FG_TARGET} --strip-debug
+	$(SYSDRV_CROSS)strip ${FG_BUILD_TARGET_DIR}/esp32_sdio.ko --strip-debug
 	cp ${FG_BUILD_TARGET_DIR}/esp32_sdio.ko ${BUILD_TARGET_OUT}/esp32_sdio_fg.ko
 	cp insmod_esp_hosted_fg.sh ${BUILD_TARGET_OUT}
 
@@ -58,7 +58,7 @@ fg_app:
 	CROSS_COMPILE=$(SYSDRV_CROSS)
 	echo app
 	${MAKE} -C ${CURRENT_DIR}/esp-hosted/esp_hosted_fg/host/linux/host_control/c_support/ \
-	CROSS_COMPILE=$(SYSDRV_CROSS) hosted_cli.out hosted_daemon.out
+	CROSS_COMPILE=$(SYSDRV_CROSS) hosted_daemon.out
 	cp ${CURRENT_DIR}/esp-hosted/esp_hosted_fg/host/linux/host_control/c_support/*.out ${BUILD_TARGET_OUT}
 
 replxx:
