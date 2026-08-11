@@ -1,0 +1,82 @@
+/*
+ * Copyright (C) 2021 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier: GPL-2.0
+ */
+
+/dts-v1/;
+/ {
+    description = "FIT image with Linux kernel, FDT blob and resource";
+
+    images {
+        fdt {
+            data = /incbin/("../../source/objs_kernel/out/fdt");
+            type = "flat_dt";
+            arch = "arm";
+            compression = "none";
+            load = <0xffffff00>;
+
+            hash {
+                algo = "sha256";
+            };
+        };
+
+        kernel {
+            data = /incbin/("../../source/objs_kernel/out/kernel");
+            type = "kernel";
+            arch = "arm";
+            os = "linux";
+            compression = "";
+            entry = <0xffffff01>;
+            load = <0xffffff01>;
+
+            hash {
+                algo = "sha256";
+            };
+        };
+
+		ramdisk {
+			data = /incbin/("../../source/buildroot/buildroot-2026.02.2/output/images/rootfs.squashfs");
+			type = "ramdisk";
+			arch = "arm";
+			os = "linux";
+
+            compression = "none";
+		    load = <0xffffff02>;
+
+			hash {
+				algo = "sha256";
+			};
+		};
+
+        resource {
+            data = /incbin/("../../source/objs_kernel/out/resource");
+            type = "multi";
+            arch = "";
+            compression = "none";
+
+            hash {
+                algo = "sha256";
+            };
+        };
+    };
+
+    configurations {
+        default = "conf";
+
+        conf {
+            rollback-index = <0x00>;
+            fdt = "fdt";
+            kernel = "kernel";
+            ramdisk = "ramdisk";
+            multi = "resource";
+
+            signature {
+                algo = "sha256,rsa2048";
+                padding = "pss";
+                key-name-hint = "dev";
+                sign-images = "fdt", "kernel", "ramdisk", "multi";
+            };
+        };
+    };
+};
