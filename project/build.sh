@@ -2718,7 +2718,7 @@ function build_save() {
 function build_allsave() {
 	# rm -rf ${RK_PROJECT_OUTPUT_IMAGE} ${RK_PROJECT_OUTPUT}
 	build_all
-	build_save
+	# build_save
 
 	build_check_power_domain
 
