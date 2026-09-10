@@ -18,8 +18,10 @@ all: lib_ncurses
 		mkdir -p $(BUILD_TARGET_OUT); \
 		pushd $(BUILD_TARGET_DIR)/; \
 			./configure --prefix=${BUILD_TARGET_OUT} \
+			--host=${SYSDRV_CROSS} \
+			CC=${SYSDRV_CROSS}-gcc \
 			LDFLAGS=-L${LIB_NCURSES}/out/lib \
-			CPPFLAGS=-I${LIB_NCURSES}/out/include \
+			CPPFLAGS="-I${LIB_NCURSES}/out/include -I${LIB_NCURSES}/out/include/ncurses" \
 			LIBS=-lncurses; \
 			make CC=${SYSDRV_CROSS}-gcc -j$(SYSDRV_JOBS); \
 			make install; \

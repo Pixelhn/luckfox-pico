@@ -1,5 +1,5 @@
 #1.cmake version
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 #2.project name
 project(test_md)

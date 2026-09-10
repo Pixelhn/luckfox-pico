@@ -1,5 +1,5 @@
 #1.cmake version
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 if (AEC_ANR_AGC_ENABLE OR ANR_ENABLE)
 	add_subdirectory(rkap_common)

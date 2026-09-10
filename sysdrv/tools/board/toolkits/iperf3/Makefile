@@ -19,23 +19,19 @@ PKG_BIN := out
 
 
 PKG_DEP_ZLIB := $(CURRENT_DIR)/../zlib
-PKG_DEP_OPENSSL := $(CURRENT_DIR)/../openssl
-
-PKG_CONF_OPTS += $(SYSDRV_OPTS) -Os \
-				 -I $(PKG_DEP_OPENSSL)/out3/include \
-				 -L$(PKG_DEP_OPENSSL)/out3/lib
+PKG_CONF_OPTS += $(SYSDRV_OPTS) -Os
 
 all:
 	@test -f $(CURRENT_DIR)/$(PKG_BIN)/bin/iperf3 ||(\
 	tar -xf ${PKG_TARBALL_IPERF3}; \
 	mkdir -p $(CURRENT_DIR)/$(PKG_BIN); \
 	pushd $(CURRENT_DIR)/$(PKG_NAME_IPERF3)/; \
-			CFLAGS="$(PKG_CONF_OPTS)" CPPFLAGS="$(PKG_CONF_OPTS)" \
-			CXXFLAGS="$(PKG_CONF_OPTS)" LDFLAGS="$(PKG_CONF_OPTS)" \
+			CFLAGS="$(PKG_CONF_OPTS) -static" \
+			CXXFLAGS="$(PKG_CONF_OPTS) -static" LDFLAGS="-static" \
 			./configure \
 			--host=$(SYSDRV_CROSS) \
 			--prefix=$(CURRENT_DIR)/$(PKG_BIN) \
-			CFLAGS=-static;\
+			--with-openssl=no;\
 		make -j$(SYSDRV_JOBS) || exit -1; \
 		make install > /dev/null; \
 		$(SYSDRV_CROSS)-strip $(CURRENT_DIR)/$(PKG_BIN)/bin/iperf3; \
