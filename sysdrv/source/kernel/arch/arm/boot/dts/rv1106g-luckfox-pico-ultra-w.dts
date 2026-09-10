@@ -39,6 +39,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key>;
 
+		Recovery-key {
+			gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_0>;
+			label ="Recovery key";
+			debounce-interval = <30>;
+			wakeup-source;
+		};
+
 		power-key3 {
 			gpios = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_3>;
@@ -69,6 +77,7 @@
 	buttons {
 		pwr_key: pwr-key {
 			rockchip,pins = 
+			<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>,
 			<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>,
 			<1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
