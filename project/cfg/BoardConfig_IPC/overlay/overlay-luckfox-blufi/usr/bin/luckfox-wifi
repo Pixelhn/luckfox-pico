@@ -1,0 +1,67 @@
+#!/bin/sh
+# wlan0 startup owner. BluFi reuses the DHCP pidfile during provisioning.
+set -eu
+mkdir -p /var/run
+exec 9>/var/run/luckfox-wifi.lock
+flock -x 9
+config=/userdata/wpa_supplicant.conf
+wpapid=/var/run/luckfox-wpa.pid
+dhcppid=/var/run/blufi-udhcpc.pid
+marker=/var/run/luckfox-wifi.started
+alive() {
+    [ -s "$1" ] || return 1
+    pid=$(cat "$1")
+    case "$pid" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$pid" -gt 1 ] && [ -r "/proc/$pid/cmdline" ] || return 1
+    args=$(tr '\000' '\n' < "/proc/$pid/cmdline")
+    printf '%s\n' "$args" | grep -q "$2" &&
+        printf '%s\n' "$args" | grep -qx wlan0
+}
+stop_pid() {
+    if alive "$1" "$2"; then
+        kill "$pid"
+        n=0
+        while kill -0 "$pid" 2>/dev/null; do
+            n=$((n + 1)); [ "$n" -lt 50 ] || return 1
+            sleep 0.1
+        done
+    fi
+    rm -f "$1"
+}
+case "${1:-start}" in
+start)
+    # A repeated legacy net.sh invocation must not interfere with provisioning.
+    if [ -f "$marker" ] && wpa_cli -i wlan0 ping 2>/dev/null | grep -q PONG; then exit 0; fi
+    n=0
+    until [ -d /sys/class/net/wlan0 ]; do
+        n=$((n + 1)); [ "$n" -lt 20 ] || exit 1; sleep 1
+    done
+    umask 077
+    if [ ! -e "$config" ]; then
+        printf 'ctrl_interface=/var/run/wpa_supplicant\nupdate_config=1\n' > "$config"
+    fi
+    chmod 600 "$config"
+    if ! wpa_cli -i wlan0 ping 2>/dev/null | grep -q PONG; then
+        wpa_supplicant -B -i wlan0 -c "$config" -P "$wpapid" 9>&-
+    fi
+    n=0
+    until wpa_cli -i wlan0 ping 2>/dev/null | grep -q PONG; do
+        n=$((n + 1)); [ "$n" -lt 20 ] || exit 1; sleep 1
+    done
+    if ! alive "$dhcppid" udhcpc; then
+        udhcpc -b -t3 -T3 -i wlan0 -p "$dhcppid" >>/var/log/wlan0-dhcp.log 2>&1 9>&-
+    fi
+    touch "$marker"
+    ;;
+stop)
+    # Init stops BluFi first, allowing an in-flight transaction to finish.
+    stop_pid "$dhcppid" udhcpc
+    stop_pid "$wpapid" wpa_supplicant
+    rm -f "$marker"
+    ;;
+status)
+    wpa_cli -i wlan0 status | grep -E '^(wpa_state|ip_address)='
+    if alive "$dhcppid" udhcpc; then echo 'wlan0 DHCP: running'; else echo 'wlan0 DHCP: stopped'; fi
+    ;;
+*) echo "Usage: $0 {start|stop|status}" >&2; exit 1 ;;
+esac

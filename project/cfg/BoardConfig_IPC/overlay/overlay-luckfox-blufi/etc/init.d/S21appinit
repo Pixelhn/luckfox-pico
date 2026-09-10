@@ -1,0 +1,29 @@
+#!/bin/sh
+# Ultra-W: load hardware before S40network/S41wifi; networking has its own owner.
+[ ! -f /etc/profile.d/RkEnv.sh ] || . /etc/profile.d/RkEnv.sh
+case "${1:-}" in
+start)
+    if [ -f /oem/usr/ko/insmod_ko.sh ]; then
+        (cd /oem/usr/ko && sh insmod_ko.sh) || exit 1
+    fi
+    if [ -e /sys/class/net/eth0/address ]; then
+        current=$(cat /sys/class/net/eth0/address)
+        if [ -s /userdata/ethaddr.txt ]; then
+            saved=$(cat /userdata/ethaddr.txt)
+            if printf '%s\n' "$saved" | grep -Eq '^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$'; then
+                if [ "$current" != "$(printf '%s' "$saved" | tr A-F a-f)" ]; then
+                    ifconfig eth0 down && ifconfig eth0 hw ether "$saved"
+                fi
+            else
+                echo 'Invalid saved eth0 MAC; retaining hardware address' >&2
+            fi
+        else
+            printf '%s\n' "$current" > /userdata/ethaddr.txt
+        fi
+    fi
+    # RkLunch is absent on this board. Keep optional application hooks guarded.
+    [ ! -f /oem/usr/bin/RkLunch.sh ] || sh /oem/usr/bin/RkLunch.sh
+    ;;
+stop) [ ! -f /oem/usr/bin/RkLunch-stop.sh ] || sh /oem/usr/bin/RkLunch-stop.sh ;;
+*) exit 1 ;;
+esac

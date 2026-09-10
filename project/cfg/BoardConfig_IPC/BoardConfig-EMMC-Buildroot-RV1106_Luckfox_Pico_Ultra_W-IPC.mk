@@ -109,6 +109,8 @@ export RK_ENABLE_ROCKCHIP_TEST=y
 # enable rockchip wifi
 export RK_ENABLE_WIFI=y
 export RK_ENABLE_WIFI_CHIP=AIC8800DC
+export RK_ENABLE_BLUFI=y
+export RK_POST_OVERLAY="overlay-luckfox-blufi"
 
 # config wifi ssid and passwd
 export LF_WIFI_SSID="Your wifi ssid"

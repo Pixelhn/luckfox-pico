@@ -1,0 +1,36 @@
+#!/bin/sh
+set -eu
+daemon=/usr/bin/nginx
+prefix=/root/web
+pidfile=/tmp/nginx.pid
+case "${1:-}" in
+start)
+    [ -x "$daemon" ] && [ -f "$prefix/conf/nginx.conf" ] || exit 1
+    if start-stop-daemon -K -t -q -p "$pidfile" -x "$daemon"; then exit 0; fi
+    mkdir -p /tmp/nginx
+    "$daemon" -p "$prefix" -t
+    "$daemon" -p "$prefix"
+    ;;
+stop)
+    if start-stop-daemon -K -t -q -p "$pidfile" -x "$daemon"; then
+        "$daemon" -p "$prefix" -s quit
+        count=0
+        while start-stop-daemon -K -t -q -p "$pidfile" -x "$daemon"; do
+            count=$((count + 1)); [ "$count" -lt 30 ] || exit 1
+            sleep 1
+        done
+    fi
+    ;;
+reload)
+    "$daemon" -p "$prefix" -t
+    "$daemon" -p "$prefix" -s reload
+    ;;
+restart)
+    "$0" stop
+    "$0" start
+    ;;
+status)
+    start-stop-daemon -K -t -q -p "$pidfile" -x "$daemon"
+    ;;
+*) echo "Usage: $0 {start|stop|restart|reload|status}" >&2; exit 1 ;;
+esac

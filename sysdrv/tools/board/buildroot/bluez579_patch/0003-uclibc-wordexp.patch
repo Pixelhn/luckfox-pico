@@ -1,0 +1,204 @@
+Subject: [PATCH] Use GLib quoted argument parsing on RV1106 uClibc
+
+No shell evaluation or command substitution.
+
+--- a/client/main.c
++++ b/client/main.c
+@@ -18,7 +18,7 @@
+ #include <unistd.h>
+ #include <stdlib.h>
+ #include <stdbool.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ 
+ #include <glib.h>
+ 
+--- a/client/player.c
++++ b/client/player.c
+@@ -24,7 +24,7 @@
+ #include <string.h>
+ #include <sys/ioctl.h>
+ #include <sys/uio.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ #include <sys/timerfd.h>
+ #include <sys/stat.h>
+ 
+--- a/src/shared/shell.c
++++ b/src/shared/shell.c
+@@ -22,7 +22,7 @@
+ #include <stdbool.h>
+ #include <signal.h>
+ #include <sys/signalfd.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ #include <getopt.h>
+ #include <fcntl.h>
+ 
+--- a/tools/obexctl.c
++++ b/tools/obexctl.c
+@@ -20,7 +20,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <inttypes.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ #include <ctype.h>
+ 
+ #include <glib.h>
+--- a/android/compat/wordexp.h
++++ b/android/compat/wordexp.h
+@@ -1,31 +1,31 @@
+-/* SPDX-License-Identifier: LGPL-2.1-or-later */
+-/*
+- *
+- *  BlueZ - Bluetooth protocol stack for Linux
+- *
+- *  Copyright (C) 1991-2013 Free Software Foundation, Inc.
+- *
+- *
+- */
+-
+-#ifndef _WORDEXP_H_
+-#define _WORDEXP_H_
+-
++/* SPDX-License-Identifier: MIT */
++/* Restricted wordexp compatibility: quoted words only, never execute a shell. */
++#ifndef RV1106_WORDEXP_H
++#define RV1106_WORDEXP_H
++#include <glib.h>
+ #define WRDE_NOCMD 0
+-
+-typedef struct {
+-	size_t we_wordc;
+-	char **we_wordv;
+-	size_t we_offs;
+-} wordexp_t;
+-
+-static inline int wordexp(const char *c, wordexp_t *w, int _i)
++#define WRDE_APPEND 1
++#define WRDE_BADCHAR 3
++#define WRDE_BADVAL 4
++#define WRDE_CMDSUB 5
++#define WRDE_NOSPACE 1
++#define WRDE_SYNTAX 2
++typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;
++static inline int wordexp(const char *s, wordexp_t *w, int flags)
+ {
+-	return -1;
++    int argc = 0; char **argv = NULL;
++    if (!(flags & WRDE_APPEND)) { w->we_wordc=0; w->we_wordv=NULL; w->we_offs=0; }
++    if (!s || !*s) return 0;
++    if (!g_shell_parse_argv(s, &argc, &argv, NULL)) return WRDE_SYNTAX;
++    size_t old = w->we_wordc;
++    w->we_wordv = g_realloc_n(w->we_wordv, old+argc+1, sizeof(char *));
++    for (int i=0;i<argc;i++) w->we_wordv[old+i]=argv[i];
++    w->we_wordc=old+argc; w->we_wordv[w->we_wordc]=NULL;
++    g_free(argv);
++    return 0;
+ }
+-
+-static inline void wordfree(wordexp_t *__wordexp)
++static inline void wordfree(wordexp_t *w)
+ {
++    g_strfreev(w->we_wordv); w->we_wordv = NULL; w->we_wordc = 0;
+ }
+-
+ #endif
+--- a/client/mgmt.c
++++ b/client/mgmt.c
+@@ -26,7 +26,7 @@
+ #include <poll.h>
+ #include <getopt.h>
+ #include <stdbool.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ #include <ctype.h>
+ 
+ #include "lib/bluetooth.h"
+--- a/tools/mesh-gatt/config-client.c
++++ b/tools/mesh-gatt/config-client.c
+@@ -20,7 +20,7 @@
+ #include <inttypes.h>
+ #include <stdbool.h>
+ #include <sys/uio.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ 
+ #include <glib.h>
+ 
+--- a/tools/mesh-gatt/config-server.c
++++ b/tools/mesh-gatt/config-server.c
+@@ -20,7 +20,7 @@
+ #include <inttypes.h>
+ #include <stdbool.h>
+ #include <sys/uio.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ 
+ #include <glib.h>
+ #include "tools/mesh/config-model.h"
+--- a/tools/mesh-gatt/gatt.c
++++ b/tools/mesh-gatt/gatt.c
+@@ -18,7 +18,7 @@
+ #include <stdlib.h>
+ #include <stdbool.h>
+ #include <sys/uio.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ 
+ #include <glib.h>
+ 
+--- a/tools/mesh-gatt/onoff-model.c
++++ b/tools/mesh-gatt/onoff-model.c
+@@ -20,7 +20,7 @@
+ #include <inttypes.h>
+ #include <stdbool.h>
+ #include <sys/uio.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ #include <readline/readline.h>
+ #include <readline/history.h>
+ #include <glib.h>
+--- a/tools/mesh-gatt/node.c
++++ b/tools/mesh-gatt/node.c
+@@ -18,7 +18,7 @@
+ #include <stdlib.h>
+ #include <stdbool.h>
+ #include <sys/uio.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ #include <inttypes.h>
+ 
+ #include <glib.h>
+--- a/tools/mesh-gatt/prov.c
++++ b/tools/mesh-gatt/prov.c
+@@ -17,7 +17,7 @@
+ #include <stdlib.h>
+ #include <stdbool.h>
+ #include <sys/uio.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ 
+ #include <readline/readline.h>
+ #include <readline/history.h>
+--- a/tools/meshctl.c
++++ b/tools/meshctl.c
+@@ -18,7 +18,7 @@
+ #include <unistd.h>
+ #include <stdlib.h>
+ #include <stdbool.h>
+-#include <wordexp.h>
++#include "android/compat/wordexp.h"
+ 
+ #include <inttypes.h>
+ #include <ctype.h>
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -829,3 +829,6 @@
+ 	-find $(top_builddir) -name "*.gcno" -delete
+ 	-find $(top_builddir) -name "*.gcda" -delete
+ 	$(RM) -r lib/bluetooth
++
++# RV1106 wordexp compatibility in shared-mainloop also needs GLib.
++LIBS = @LIBS@ @GLIB_LIBS@

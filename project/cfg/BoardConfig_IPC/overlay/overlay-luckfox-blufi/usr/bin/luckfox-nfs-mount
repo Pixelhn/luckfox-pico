@@ -1,0 +1,30 @@
+#!/bin/sh
+# Optional development mount. Private settings live only on the device.
+config=/userdata/luckfox-nfs.conf
+[ -f "$config" ] || exit 0
+source_path=
+target_path=
+options=
+# Parse data, never execute configuration as shell commands.
+while IFS='=' read -r key value || [ -n "$key" ]; do
+    case "$key" in
+        ''|'#'*) ;;
+        NFS_SOURCE) source_path=$value ;;
+        NFS_TARGET) target_path=$value ;;
+        NFS_OPTIONS) options=$value ;;
+        *) echo 'Invalid NFS configuration key' >&2; exit 1 ;;
+    esac
+done < "$config"
+case "$source_path" in *:/*) ;; *) echo 'Invalid NFS source' >&2; exit 1 ;; esac
+case "$target_path" in /*) ;; *) echo 'Invalid NFS target' >&2; exit 1 ;; esac
+[ -n "$options" ] || { echo 'NFS options are required' >&2; exit 1; }
+case "${1:-}" in
+    --check) echo 'NFS configuration valid'; exit 0 ;;
+    '') ;;
+    *) echo "Usage: $0 [--check]" >&2; exit 1 ;;
+esac
+mkdir /var/run/luckfox-nfs-mount.started 2>/dev/null || exit 0
+if ! awk -v target="$target_path" '$2 == target { found=1 } END { exit !found }' /proc/mounts; then
+    mkdir -p "$target_path" || exit 1
+    mount -t nfs -o "$options" "$source_path" "$target_path" >/var/log/nfs-mount.log 2>&1 &
+fi

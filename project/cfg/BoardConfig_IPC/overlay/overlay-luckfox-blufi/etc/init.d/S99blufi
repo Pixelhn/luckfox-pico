@@ -1,0 +1,52 @@
+#!/bin/sh
+# BlueZ/D-Bus are provided by S30dbus-daemon and S40bluetoothd.
+# AIC modules: S21appinit; supplicant and DHCP: S41wifi.
+set -eu
+service=/oem/usr/bin/blufi_service
+pidfile=/var/run/blufi_service.pid
+case "${1:-}" in
+    start)
+        [ -x "$service" ] || exit 0
+        if [ ! -d /sys/class/bluetooth/hci0 ]; then
+            start-stop-daemon -S -b -m -p /var/run/blufi-hciattach.pid -x /usr/bin/hciattach -- -n -s 1500000 /dev/ttyS1 any 1500000 flow nosleep
+        fi
+        count=0
+        while [ ! -d /sys/class/bluetooth/hci0 ] || [ ! -S /var/run/wpa_supplicant/wlan0 ]; do
+            count=$((count + 1)); [ "$count" -lt 20 ] || { echo 'BluFi dependencies unavailable' >&2; exit 1; }
+            sleep 1
+        done
+        /usr/bin/luckfox-wifi start
+        if pidof blufi_service >/dev/null; then exit 0; fi
+        "$service" > /var/log/blufi-service.log 2>&1 &
+        echo $! > "$pidfile"
+        ;;
+    stop)
+        start-stop-daemon -K -p "$pidfile" -x "$service" || true
+        count=0
+        while start-stop-daemon -K -t -q -p "$pidfile" -x "$service"; do
+            count=$((count + 1)); [ "$count" -lt 70 ] || exit 1
+            sleep 1
+        done
+        if start-stop-daemon -K -t -q -p /var/run/blufi-hciattach.pid -x /usr/bin/hciattach; then
+            start-stop-daemon -K -p /var/run/blufi-hciattach.pid -x /usr/bin/hciattach
+            count=0
+            # Closing UART removes hci0 asynchronously. Wait before a restart
+            # can mistake the old controller for an initialized new one.
+            while start-stop-daemon -K -t -q -p /var/run/blufi-hciattach.pid -x /usr/bin/hciattach || [ -d /sys/class/bluetooth/hci0 ]; do
+                count=$((count + 1)); [ "$count" -lt 15 ] || exit 1
+                sleep 1
+            done
+            rm -f /var/run/blufi-hciattach.pid
+        fi
+        ;;
+    restart)
+        "$0" stop
+        count=0
+        while start-stop-daemon -K -t -q -p "$pidfile" -x "$service"; do
+            count=$((count + 1)); [ "$count" -lt 70 ] || exit 1
+            sleep 1
+        done
+        "$0" start
+        ;;
+    *) echo "Usage: $0 {start|stop|restart}" >&2; exit 1 ;;
+esac

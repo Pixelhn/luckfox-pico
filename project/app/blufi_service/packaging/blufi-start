@@ -1,0 +1,8 @@
+#!/bin/sh
+# Foreground service launcher. Existing supplicant and DHCP ownership are checked separately.
+set -eu
+if [ ! -d /sys/class/bluetooth/hci0 ]; then
+    echo 'hci0 unavailable; initialize AIC UART before starting BluFi' >&2
+    exit 1
+fi
+exec /oem/usr/bin/blufi_service "$@"

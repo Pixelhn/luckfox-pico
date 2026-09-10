@@ -1,0 +1,25 @@
+#!/bin/sh
+# Isolated NFS test runtime. Reuse existing system services; never kill another owner.
+set -eu
+BLUFI_TEST_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export LD_LIBRARY_PATH="$BLUFI_TEST_ROOT/usr/lib:$BLUFI_TEST_ROOT/lib"
+export PATH="$BLUFI_TEST_ROOT/usr/bin:$PATH"
+mkdir -p /var/run/dbus
+if [ ! -S /var/run/dbus/system_bus_socket ]; then
+    dbus-daemon --config-file="$BLUFI_TEST_ROOT/system.conf" --fork --print-pid > /var/run/blufi-test-dbus.pid
+fi
+if [ ! -d /sys/class/bluetooth/hci0 ]; then
+    hciattach -n -s 1500000 /dev/ttyS1 any 1500000 flow nosleep > /tmp/blufi-hciattach.log 2>&1 &
+    echo $! > /var/run/blufi-test-hciattach.pid
+    count=0
+    while [ ! -d /sys/class/bluetooth/hci0 ]; do
+        count=$((count + 1)); [ "$count" -lt 15 ] || exit 1
+        sleep 1
+    done
+fi
+if ! pidof bluetoothd >/dev/null; then
+    "$BLUFI_TEST_ROOT/usr/libexec/bluetooth/bluetoothd" -n -f "$BLUFI_TEST_ROOT/main.conf" > /tmp/blufi-bluetoothd.log 2>&1 &
+    echo $! > /var/run/blufi-test-bluetoothd.pid
+fi
+/usr/bin/luckfox-wifi start
+exec blufi_service "$@"

@@ -624,9 +624,14 @@ buildroot: prepare
 	cp $(SYSDRV_DIR)/tools/board/buildroot/*_defconfig $(BUILDROOT_DIR)/$(BUILDROOT_VER)/configs/ ;\
 
 	cp $(SYSDRV_DIR)/tools/board/buildroot/busybox.config $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/busybox/ ;\
-	cp ${HCITOOL_TOOL_PATH}/0001-Fixed-header-file-errors.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/ ;\
-	cp ${HCITOOL_TOOL_PATH}/0002-Fix-build-errors.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/ ;\
-	cp ${HCITOOL_TOOL_PATH}/0003-fix-compat-wordexp.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/ ;\
+	if [ "$(BUILDROOT_VER)" = "buildroot-2026.02.2" ]; then \
+		rm -f $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/0001-Fixed-header-file-errors.patch \
+			$(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/0002-Fix-build-errors.patch \
+			$(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/0003-fix-compat-wordexp.patch; \
+		cp $(SYSDRV_DIR)/tools/board/buildroot/bluez579_patch/*.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/; \
+	else \
+		cp ${HCITOOL_TOOL_PATH}/*.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/bluez5_utils/; \
+	fi
 	cp ${MPV_PATCH_PATH}/0002-change-j1.patch $(BUILDROOT_DIR)/$(BUILDROOT_VER)/package/mpv/ ;\
 
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) $(BUILDROOT_DEFCONFIG) -C $(BUILDROOT_DIR)/$(BUILDROOT_VER) 

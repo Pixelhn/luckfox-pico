@@ -1,0 +1,20 @@
+#!/bin/sh
+# Legacy user applications run once per boot, independently of BluFi.
+case "${1:-}" in
+start)
+    [ -f /userdata/app.sh ] || exit 0
+    mkdir /var/run/userdata-app.started 2>/dev/null || exit 0
+    (
+        n=0
+        until ip route | grep -q '^default '; do
+            n=$((n + 1)); [ "$n" -lt 30 ] || break; sleep 1
+        done
+        sh /userdata/app.sh
+    ) >/var/log/userdata-app.log 2>&1 &
+    ;;
+stop)
+    # app.sh daemonizes its applications; retain its once-per-boot marker.
+    [ ! -f /userdata/app-stop.sh ] || sh /userdata/app-stop.sh
+    ;;
+*) exit 1 ;;
+esac

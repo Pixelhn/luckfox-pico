@@ -1,0 +1,36 @@
+#!/bin/sh
+# Optional board-only startup for the locally copied test runtime; not a firmware overlay.
+set -eu
+case "${1:-}" in
+start)
+    [ -x /userdata/blufi-test/test-start ] || exit 0
+    if pidof blufi_service >/dev/null; then exit 0; fi
+    /userdata/blufi-test/test-start > /tmp/blufi-service.log 2>&1 &
+    echo $! > /var/run/blufi-test-service.pid
+    ;;
+stop)
+    if [ -f /var/run/blufi-test-service.pid ]; then
+        start-stop-daemon -K -p /var/run/blufi-test-service.pid -x /userdata/blufi-test/usr/bin/blufi_service || true
+        count=0
+        while start-stop-daemon -K -t -q -p /var/run/blufi-test-service.pid -x /userdata/blufi-test/usr/bin/blufi_service; do
+            count=$((count + 1)); [ "$count" -lt 70 ] || exit 1
+            sleep 1
+        done
+    fi
+    for pair in 'bluetoothd usr/libexec/bluetooth/bluetoothd' 'hciattach usr/bin/hciattach' 'dbus usr/bin/dbus-daemon'; do
+        set -- $pair
+        file=/var/run/blufi-test-$1.pid
+        executable=/userdata/blufi-test/$2
+        if [ -f "$file" ]; then
+            start-stop-daemon -K -p "$file" -x "$executable" || true
+            count=0
+            while start-stop-daemon -K -t -q -p "$file" -x "$executable"; do
+                count=$((count + 1)); [ "$count" -lt 10 ] || exit 1
+                sleep 1
+            done
+            rm -f "$file"
+        fi
+    done
+    ;;
+*) echo "Usage: $0 {start|stop}" >&2; exit 1 ;;
+esac
