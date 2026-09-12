@@ -4,3 +4,6 @@
 [submodule "sysdrv/drv_ko/wifi/esp32c3/replxx"]
 	path = sysdrv/drv_ko/wifi/esp32c3/replxx
 	url = https://github.com/AmokHuginnsson/replxx.git
+[submodule "sysdrv/drv_ko/wifi/esp-hosted/esp-hosted-mcu"]
+	path = sysdrv/drv_ko/wifi/esp-hosted/esp-hosted-mcu
+	url = https://github.com/espressif/esp-hosted-mcu.git

@@ -11,3 +11,4 @@ sysdrv/tools/board/memtester/memtester-4.6.0/
 sysdrv/tools/board/dosfstools/dosfstools-4.2/
 work.sh
 AGENTS.md
+doc/*.md
