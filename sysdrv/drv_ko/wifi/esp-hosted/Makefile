@@ -11,14 +11,16 @@ HOSTED_MCU_DRIVER_DIR=$(CURRENT_DIR)/esp-hosted-mcu/host/linux/eh_host_linux_kmo
 HOSTED_MCU_DRIVER_DIR_KO=${HOSTED_MCU_DRIVER_DIR}/esp32_spi.ko
 
 HOSTED_MCU_DIR := $(CURRENT_DIR)/esp-hosted-mcu
-WIFI_STA_C_APP_DIR := $(HOSTED_MCU_DIR)/examples/wifi/sta/linux_802_3_host/c_app
+WIFI_STA_C_APP_DIR := $(CURRENT_DIR)/hosted-mcu-app#$(HOSTED_MCU_DIR)/examples/wifi/sta/linux_802_3_host/c_app
 WIFI_STA_C_APP_BUILD := $(WIFI_STA_C_APP_DIR)/build
 HOSTED_TOOLCHAIN_BIN := $(abspath $(CURRENT_DIR)/../../../..)/tools/linux/toolchain/arm-rockchip830-linux-uclibcgnueabihf/bin
 WIFI_STA_C_APP_BIN := $(WIFI_STA_C_APP_BUILD)/main/wifi_sta_host_c_app
 
-all: hosted-mcu-spi-ko hosted-mcu-spi-app
+.PHONY: all hosted-mcu-spi-ko hosted-mcu-app clean
 
-hosted-mcu-spi-app:
+all: hosted-mcu-spi-ko hosted-mcu-app
+
+hosted-mcu-app:
 	@test -f $(HOSTED_MCU_DIR)/tools/vendor/esp-idf-kconfig/esp_idf_kconfig/__init__.py || \
 		(echo "Missing esp-idf-kconfig submodule; run git submodule update --init $(HOSTED_MCU_DIR)/tools/vendor/esp-idf-kconfig"; exit 1)
 	rm -rf $(WIFI_STA_C_APP_BUILD)
@@ -38,3 +40,6 @@ hosted-mcu-spi-ko:
 		CROSS_COMPILE=$(SYSDRV_CROSS)
 		cp ${HOSTED_MCU_DRIVER_DIR_KO} ${BUILD_TARGET_OUT}
 		cp $(CURRENT_DIR)/insmod_esp_hosted_mcu_spi.sh ${BUILD_TARGET_OUT}
+
+clean:
+	rm -rf $(WIFI_STA_C_APP_BUILD)
